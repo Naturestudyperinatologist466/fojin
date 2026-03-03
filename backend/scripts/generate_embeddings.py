@@ -1,0 +1,85 @@
+"""Batch generate embeddings for all text content.
+
+Usage:
+    python -m scripts.generate_embeddings [--batch-size 50] [--text-id 123]
+"""
+
+import argparse
+import asyncio
+import logging
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import async_session
+from app.models.text import TextContent
+from app.services.embedding import chunk_text, generate_embedding
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+async def process_content(session: AsyncSession, tc: TextContent) -> int:
+    """Process a single TextContent and store embeddings. Returns count of chunks."""
+    chunks = chunk_text(tc.content, chunk_size=500, overlap=50)
+    count = 0
+    for i, chunk in enumerate(chunks):
+        if len(chunk.strip()) < 10:
+            continue
+        try:
+            embedding = await generate_embedding(chunk)
+            embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
+            await session.execute(
+                text(
+                    """
+                    INSERT INTO text_embeddings (text_id, juan_num, chunk_index, chunk_text, embedding)
+                    VALUES (:text_id, :juan_num, :chunk_index, :chunk_text, :embedding::vector)
+                    """
+                ),
+                {
+                    "text_id": tc.text_id,
+                    "juan_num": tc.juan_num,
+                    "chunk_index": i,
+                    "chunk_text": chunk,
+                    "embedding": embedding_str,
+                },
+            )
+            count += 1
+        except Exception:
+            logger.exception(f"Failed to embed chunk {i} of text {tc.text_id} juan {tc.juan_num}")
+    await session.commit()
+    return count
+
+
+async def main(batch_size: int, text_id: int | None) -> None:
+    async with async_session() as session:
+        query = select(TextContent)
+        if text_id:
+            query = query.where(TextContent.text_id == text_id)
+        query = query.order_by(TextContent.text_id, TextContent.juan_num)
+
+        result = await session.execute(query)
+        contents = result.scalars().all()
+        total = len(contents)
+        logger.info(f"Found {total} text content records to process")
+
+        processed = 0
+        for tc in contents:
+            count = await process_content(session, tc)
+            processed += 1
+            logger.info(
+                f"[{processed}/{total}] text_id={tc.text_id} juan={tc.juan_num} "
+                f"-> {count} chunks embedded"
+            )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--batch-size", type=int, default=50)
+    parser.add_argument("--text-id", type=int, default=None)
+    args = parser.parse_args()
+    asyncio.run(main(args.batch_size, args.text_id))
