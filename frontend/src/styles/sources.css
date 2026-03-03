@@ -1,0 +1,288 @@
+/* ========================================
+   SourcesPage — 数据源导航
+   ======================================== */
+
+.sources-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+}
+
+.sources-header {
+  text-align: center;
+  padding: 32px 0 24px;
+}
+
+.sources-title {
+  font-family: "Noto Serif SC", serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: #2b2318;
+  margin: 0 0 8px;
+  letter-spacing: 4px;
+}
+
+.sources-desc {
+  font-size: 14px;
+  color: #9a8e7a;
+  margin: 0;
+}
+
+/* ---------- 工具栏 ---------- */
+.sources-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  background: #fff;
+  border: 1px solid #e8e0d4;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.sources-try-search {
+  margin-left: auto;
+}
+
+.sources-stats-bar {
+  font-size: 13px;
+  color: #9a8e7a;
+  margin-bottom: 20px;
+  padding-left: 4px;
+}
+
+.sources-stats-bar strong {
+  color: #8b2500;
+}
+
+/* ---------- 分组 ---------- */
+.sources-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.sources-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e8e0d4;
+}
+
+.sources-group-name {
+  font-family: "Noto Serif SC", serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2b2318;
+}
+
+.sources-group-count {
+  font-size: 11px;
+  color: #9a8e7a;
+  background: #f0ebe2;
+  padding: 1px 8px;
+  border-radius: 8px;
+}
+
+/* ---------- 卡片网格 ---------- */
+.sources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.source-card {
+  background: #fff;
+  border: 1px solid #e8e0d4;
+  border-radius: 8px;
+  padding: 16px 18px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.source-card:hover {
+  border-color: #b08d57;
+  box-shadow: 0 2px 12px rgba(176, 141, 87, 0.08);
+}
+
+.source-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.source-card-icon {
+  font-size: 18px;
+  color: #8b2500;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.source-card-titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.source-card-name {
+  font-family: "Noto Serif SC", serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2b2318;
+  display: block;
+  line-height: 1.4;
+}
+
+.source-card-name-en {
+  font-size: 11px;
+  color: #9a8e7a;
+  display: block;
+  line-height: 1.3;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-card-badges {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.source-card-desc {
+  font-size: 12px;
+  color: #5c4f3d;
+  line-height: 1.7;
+  margin: 0 0 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.source-card-dists {
+  margin: 0 0 10px;
+}
+
+.source-card-dists-title {
+  font-size: 11px;
+  color: #9a8e7a;
+  margin-bottom: 6px;
+}
+
+.source-card-dists-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.source-dist-link {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid #eee5d8;
+  border-radius: 6px;
+  background: #fcfaf6;
+  color: #5c4f3d;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.source-dist-link:hover {
+  border-color: #d4a574;
+  background: #fff;
+  color: #8b2500;
+}
+
+.source-dist-link.is-primary {
+  border-color: #d4a574;
+  background: #fdf6ee;
+}
+
+.source-dist-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.source-dist-meta {
+  font-size: 10px;
+  color: #9a8e7a;
+  white-space: nowrap;
+}
+
+.source-card-langs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.source-lang-tag {
+  font-size: 10px;
+  color: #5c4f3d;
+  background: #f0ebe2;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.source-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.source-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #5c4f3d;
+  padding: 4px 10px;
+  border: 1px solid #e8e0d4;
+  border-radius: 4px;
+  background: #faf8f3;
+  text-decoration: none;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.source-btn:hover {
+  color: #8b2500;
+  border-color: #b08d57;
+  background: #fff;
+}
+
+.source-btn-search {
+  color: #8b2500;
+  border-color: #d4a574;
+  background: #fdf6ee;
+}
+
+.source-btn-search:hover {
+  background: #fff;
+  border-color: #8b2500;
+}
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 768px) {
+  .sources-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sources-try-search {
+    margin-left: 0;
+  }
+
+  .sources-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sources-title {
+    font-size: 22px;
+  }
+}

@@ -1,0 +1,542 @@
+/* ========================================
+   FoJin 首页 — 中国古典浅色风格
+   宣纸暖白 · 水墨意境 · 衬线书法
+   ======================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200;300;400;600;700;900&family=ZCOOL+XiaoWei&display=swap');
+
+:root {
+  --fj-bg:        #f8f5ef;       /* 宣纸暖白 */
+  --fj-bg-alt:    #f0ebe2;       /* 稍深暖色 */
+  --fj-ink:       #2b2318;       /* 墨色 */
+  --fj-ink-light: #5c4f3d;       /* 淡墨 */
+  --fj-ink-muted: #9a8e7a;       /* 极淡墨 */
+  --fj-accent:    #8b2500;       /* 朱砂红 */
+  --fj-gold:      #b08d57;       /* 檀金 */
+  --fj-border:    #d9d0c1;       /* 绢帛线 */
+  --fj-card-bg:   rgba(255,255,255,0.6);
+}
+
+/* ---------- 页面容器 ---------- */
+.home-page {
+  min-height: 100vh;
+  background: var(--fj-bg);
+  /* 宣纸微纹理 */
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(176,141,87,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(139,37,0,0.03) 0%, transparent 50%);
+}
+
+/* ---------- 英雄区 ---------- */
+.home-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 100px 24px 60px;
+  position: relative;
+}
+
+/* 水墨山水装饰线 */
+.home-hero::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--fj-border), transparent);
+}
+
+/* ---------- 标题 ---------- */
+.home-title {
+  font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+  font-size: 72px;
+  font-weight: 900;
+  color: var(--fj-ink);
+  letter-spacing: 24px;
+  margin: 0 0 8px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.home-title-accent {
+  color: var(--fj-accent);
+}
+
+/* ---------- 副标题 ---------- */
+.home-subtitle {
+  font-family: "Noto Serif SC", serif;
+  font-size: 15px;
+  font-weight: 300;
+  color: var(--fj-ink-muted);
+  letter-spacing: 8px;
+  margin-bottom: 20px;
+}
+
+/* ---------- 描述 ---------- */
+.home-desc {
+  font-family: "Noto Serif SC", serif;
+  font-size: 15px;
+  font-weight: 300;
+  color: var(--fj-ink-light);
+  text-align: center;
+  max-width: 400px;
+  line-height: 2;
+  margin-bottom: 48px;
+}
+
+/* ---------- 合并搜索栏 ---------- */
+.search-combo {
+  width: 100%;
+  max-width: 780px;
+  margin-bottom: 72px;
+  position: relative;
+}
+
+.search-combo-bar {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--fj-border);
+  border-radius: 8px;
+  height: 56px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.search-combo-bar:focus-within {
+  border-color: var(--fj-gold);
+}
+
+/* 左侧数据源按钮 */
+.search-combo-src {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  height: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: "Noto Serif SC", serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fj-accent);
+  white-space: nowrap;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.search-combo-src:hover {
+  background: var(--fj-bg);
+}
+
+.search-combo-src .anticon:last-child {
+  font-size: 10px;
+  color: var(--fj-ink-muted);
+}
+
+.search-combo-badge {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--fj-ink-muted);
+  background: var(--fj-bg-alt);
+  padding: 1px 8px;
+  border-radius: 8px;
+}
+
+/* 竖线分隔 */
+.search-combo-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--fj-border);
+  flex-shrink: 0;
+}
+
+/* 输入框 */
+.search-combo-input {
+  flex: 1;
+  height: 100%;
+  border: none;
+  outline: none;
+  padding: 0 20px;
+  font-family: "Noto Serif SC", serif;
+  font-size: 16px;
+  color: var(--fj-ink);
+  background: transparent;
+  min-width: 0;
+}
+
+.search-combo-input::placeholder {
+  color: var(--fj-ink-muted);
+  font-size: 15px;
+}
+
+/* 搜索按钮 */
+.search-combo-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 24px;
+  background: var(--fj-accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-family: "Noto Serif SC", serif;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.search-combo-btn:hover {
+  background: #a03000;
+}
+
+/* ---------- 统计数据 ---------- */
+.home-stats {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  max-width: 560px;
+  margin-bottom: 72px;
+}
+
+.home-stat-item {
+  flex: 1;
+  text-align: center;
+  padding: 0 28px;
+  position: relative;
+}
+
+/* 竖线分隔符 — 用传统线条 */
+.home-stat-item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 10%;
+  height: 80%;
+  width: 1px;
+  background: var(--fj-border);
+}
+
+.home-stat-num {
+  font-family: "Noto Serif SC", serif;
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--fj-ink);
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.home-stat-lbl {
+  font-family: "Noto Serif SC", serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--fj-ink-muted);
+  letter-spacing: 3px;
+}
+
+.home-stat-sub {
+  font-size: 10px;
+  color: var(--fj-ink-muted);
+  margin-top: 6px;
+  opacity: 0.7;
+  letter-spacing: 0.5px;
+}
+
+/* ---------- 特色功能 ---------- */
+.home-features-section {
+  padding: 0 24px 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.home-section-label {
+  font-family: "Noto Serif SC", serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--fj-ink-muted);
+  letter-spacing: 6px;
+  margin-bottom: 32px;
+  position: relative;
+  padding: 0 24px;
+}
+
+/* 标题两侧装饰线 */
+.home-section-label::before,
+.home-section-label::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 40px;
+  height: 1px;
+  background: var(--fj-border);
+}
+.home-section-label::before { right: 100%; margin-right: 0; }
+.home-section-label::after  { left: 100%; margin-left: 0; }
+
+.home-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.home-feat {
+  background: var(--fj-card-bg);
+  border: 1px solid var(--fj-border);
+  border-radius: 8px;
+  padding: 32px 28px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.home-feat:hover {
+  border-color: var(--fj-gold);
+  box-shadow: 0 4px 20px rgba(176,141,87,0.08);
+  transform: translateY(-2px);
+}
+
+.home-feat-icon {
+  font-size: 22px;
+  color: var(--fj-accent);
+  margin-bottom: 16px;
+}
+
+.home-feat-title {
+  font-family: "Noto Serif SC", serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fj-ink);
+  margin-bottom: 8px;
+}
+
+.home-feat-desc {
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--fj-ink-light);
+  line-height: 1.8;
+}
+
+/* ---------- 数据源面板（搜索栏下拉） ---------- */
+.src-panel {
+  margin-top: 4px;
+  background: #fff;
+  border: 1px solid var(--fj-border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+}
+
+.src-panel-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--fj-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.src-panel-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-family: "Noto Serif SC", serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fj-ink);
+}
+
+.src-panel-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--fj-ink-muted);
+}
+
+.src-panel-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 列表 */
+.src-panel-list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.src-panel-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.src-panel-list::-webkit-scrollbar-thumb {
+  background: var(--fj-border);
+  border-radius: 2px;
+}
+
+.src-panel-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid rgba(217,208,193,0.3);
+}
+
+.src-panel-item:hover {
+  background: var(--fj-bg);
+}
+
+.src-panel-item:last-child {
+  border-bottom: none;
+}
+
+.src-item-name {
+  flex: 1;
+  font-family: "Noto Serif SC", serif;
+  font-size: 13px;
+  color: var(--fj-ink);
+}
+
+.src-item-tag {
+  font-size: 11px;
+  color: var(--fj-ink-muted);
+  background: var(--fj-bg);
+  padding: 2px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.src-item-link {
+  color: var(--fj-ink-muted);
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.src-item-link:hover {
+  color: var(--fj-accent);
+  background: rgba(139,37,0,0.06);
+}
+
+.src-panel-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--fj-ink-muted);
+  font-size: 13px;
+}
+
+/* ---------- 外部数据源搜索链接 ---------- */
+.ext-sources {
+  margin-top: 24px;
+  background: #fff;
+  border: 1px solid #d9d0c1;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.ext-sources-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0ebe2;
+}
+
+.ext-region {
+  margin-bottom: 14px;
+}
+
+.ext-region-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5c4f3d;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ext-region-count {
+  font-size: 10px;
+  font-weight: 400;
+  color: #9a8e7a;
+  background: #f0ebe2;
+  padding: 0 6px;
+  border-radius: 8px;
+}
+
+.ext-region-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ext-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #5c4f3d;
+  padding: 4px 12px;
+  border: 1px solid #e8e0d4;
+  border-radius: 4px;
+  background: #faf8f3;
+  text-decoration: none;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.ext-link:hover {
+  color: #8b2500;
+  border-color: #b08d57;
+  background: #fff;
+}
+
+.ext-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #8b2500;
+  background: none;
+  border: 1px solid #e8e0d4;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ext-toggle:hover {
+  background: #faf8f3;
+  border-color: #b08d57;
+}
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 768px) {
+  .home-hero { padding: 80px 20px 48px; }
+  .home-title { font-size: 48px; letter-spacing: 12px; }
+  .home-subtitle { font-size: 12px; letter-spacing: 4px; }
+  .home-desc { font-size: 13px; }
+  .home-search-wrap { margin-bottom: 48px; }
+
+  .home-stats { flex-direction: column; max-width: 200px; }
+  .home-stat-item { padding: 16px 0; }
+  .home-stat-item:not(:last-child)::after {
+    top: auto; bottom: 0; right: 20%; width: 60%; height: 1px;
+  }
+  .home-stat-num { font-size: 32px; }
+
+  .home-features { grid-template-columns: 1fr; max-width: 400px; }
+}

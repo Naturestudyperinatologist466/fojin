@@ -1,0 +1,406 @@
+/* ========================================
+   KnowledgeGraphPage — 古典水墨风格
+   ======================================== */
+
+.kg-page {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* ---------- 标题 ---------- */
+.kg-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.kg-header h3 {
+  font-family: "Noto Serif SC", serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: #2b2318;
+  margin: 0;
+  letter-spacing: 2px;
+}
+
+.kg-header .anticon {
+  font-size: 18px;
+  color: #8b2500;
+}
+
+/* ---------- 工具栏 ---------- */
+.kg-toolbar {
+  background: #fff;
+  border: 1px solid #e8e0d4;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.kg-toolbar-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.kg-toolbar-main .ant-input-search {
+  max-width: 360px;
+}
+
+.kg-toolbar-main .ant-input-affix-wrapper {
+  border-color: #d9d0c1;
+  border-radius: 6px;
+  background: #faf8f5;
+}
+
+.kg-toolbar-main .ant-input-affix-wrapper:hover,
+.kg-toolbar-main .ant-input-affix-wrapper:focus-within {
+  border-color: #b08d57;
+}
+
+.kg-toolbar-main .ant-select .ant-select-selector {
+  border-color: #d9d0c1 !important;
+  border-radius: 6px !important;
+  background: #faf8f5 !important;
+}
+
+.kg-depth-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.kg-depth-label {
+  font-family: "Noto Serif SC", serif;
+  font-size: 12px;
+  color: #9a8e7a;
+  white-space: nowrap;
+}
+
+.kg-toolbar .ant-slider {
+  width: 100px;
+}
+
+.kg-toolbar .ant-slider .ant-slider-track {
+  background: #b08d57;
+}
+
+.kg-toolbar .ant-slider .ant-slider-handle::after {
+  box-shadow: 0 0 0 2px #b08d57;
+}
+
+/* ---------- 关系过滤 ---------- */
+.kg-predicate-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #f0ebe2;
+}
+
+.kg-predicate-label {
+  font-family: "Noto Serif SC", serif;
+  font-size: 12px;
+  color: #9a8e7a;
+  flex-shrink: 0;
+}
+
+.kg-predicate-bar .ant-checkbox-wrapper {
+  font-size: 12px;
+  color: #5c4f3d;
+}
+
+.kg-predicate-bar .ant-checkbox-checked .ant-checkbox-inner {
+  background-color: #8b2500;
+  border-color: #8b2500;
+}
+
+/* ---------- 三栏布局 ---------- */
+.kg-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+/* ---------- 左侧搜索 ---------- */
+.kg-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 68px;
+}
+
+.kg-sidebar-card {
+  background: #fff;
+  border: 1px solid #e8e0d4;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.kg-sidebar-title {
+  font-family: "Noto Serif SC", serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2b2318;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0ebe2;
+  margin: 0;
+}
+
+.kg-sidebar-body {
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
+.kg-sidebar-body::-webkit-scrollbar {
+  width: 3px;
+}
+
+.kg-sidebar-body::-webkit-scrollbar-thumb {
+  background: #d9d0c1;
+  border-radius: 2px;
+}
+
+/* ---------- 搜索结果项 ---------- */
+.kg-result-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f5f0ea;
+  transition: all 0.15s;
+}
+
+.kg-result-item:last-child {
+  border-bottom: none;
+}
+
+.kg-result-item:hover {
+  background: #faf6f0;
+}
+
+.kg-result-item.active {
+  background: #f5ece0;
+  border-left: 3px solid #8b2500;
+  padding-left: 11px;
+}
+
+.kg-result-name {
+  font-family: "Noto Serif SC", serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2b2318;
+  line-height: 1.4;
+}
+
+.kg-result-sub {
+  font-size: 12px;
+  color: #9a8e7a;
+  margin-left: 6px;
+  font-style: italic;
+}
+
+.kg-result-desc {
+  font-size: 12px;
+  color: #7a6e5c;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kg-result-tags {
+  margin-top: 4px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* 类型标签 */
+.kg-type-tag {
+  display: inline-block;
+  font-size: 10px;
+  line-height: 18px;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-family: "Noto Serif SC", serif;
+}
+
+.kg-type-tag--person   { background: #fff1f0; color: #a8071a; border: 1px solid #ffa39e; }
+.kg-type-tag--text     { background: #f0f5ff; color: #10239e; border: 1px solid #adc6ff; }
+.kg-type-tag--monastery{ background: #f6ffed; color: #135200; border: 1px solid #b7eb8f; }
+.kg-type-tag--school   { background: #f9f0ff; color: #531dab; border: 1px solid #d3adf7; }
+.kg-type-tag--place    { background: #fff7e6; color: #ad4e00; border: 1px solid #ffd591; }
+.kg-type-tag--concept  { background: #e6fffb; color: #006d75; border: 1px solid #87e8de; }
+.kg-type-tag--dynasty  { background: #fff0f6; color: #9e1068; border: 1px solid #ffadd2; }
+
+.kg-no-relation-badge {
+  font-size: 10px;
+  color: #bfb8a8;
+  margin-left: 4px;
+}
+
+/* ---------- 中间图谱区 ---------- */
+.kg-graph-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.kg-graph-container {
+  background: #fff;
+  border: 1px solid #e8e0d4;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.kg-graph-container svg {
+  display: block;
+}
+
+.kg-graph-empty {
+  background: #fff;
+  border: 1px solid #e8e0d4;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 500px;
+  color: #9a8e7a;
+}
+
+.kg-graph-empty .ant-empty-description {
+  color: #9a8e7a;
+  font-family: "Noto Serif SC", serif;
+  font-size: 13px;
+}
+
+.kg-truncated-bar {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 5;
+}
+
+.kg-truncated-bar .ant-alert {
+  background: rgba(255, 247, 230, 0.92);
+  border-color: #ffe58f;
+  border-radius: 6px;
+  font-size: 12px;
+  backdrop-filter: blur(4px);
+}
+
+/* ---------- 图谱图例（HTML版） ---------- */
+.kg-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 14px;
+  border-top: 1px solid #f0ebe2;
+  background: #faf8f5;
+  flex-wrap: wrap;
+}
+
+.kg-legend-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kg-legend-title {
+  font-size: 11px;
+  color: #9a8e7a;
+  font-family: "Noto Serif SC", serif;
+}
+
+.kg-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #5c4f3d;
+}
+
+.kg-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.kg-legend-line {
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+/* ---------- 右侧详情 ---------- */
+.kg-detail-panel {
+  width: 240px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 68px;
+}
+
+.kg-detail-card {
+  background: #fff;
+  border: 1px solid #e8e0d4;
+  border-radius: 8px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.kg-detail-card::-webkit-scrollbar {
+  width: 3px;
+}
+
+.kg-detail-card::-webkit-scrollbar-thumb {
+  background: #d9d0c1;
+  border-radius: 2px;
+}
+
+.kg-detail-empty {
+  background: #fff;
+  border: 1px solid #e8e0d4;
+  border-radius: 8px;
+  padding: 40px 16px;
+  text-align: center;
+}
+
+.kg-detail-empty .ant-empty-description {
+  color: #9a8e7a;
+  font-family: "Noto Serif SC", serif;
+  font-size: 12px;
+}
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 1200px) {
+  .kg-detail-panel {
+    width: 200px;
+  }
+  .kg-sidebar {
+    width: 180px;
+  }
+}
+
+@media (max-width: 992px) {
+  .kg-layout {
+    flex-wrap: wrap;
+  }
+  .kg-sidebar {
+    width: 100%;
+    position: static;
+  }
+  .kg-sidebar-body {
+    max-height: 200px;
+  }
+  .kg-detail-panel {
+    width: 100%;
+    position: static;
+  }
+}

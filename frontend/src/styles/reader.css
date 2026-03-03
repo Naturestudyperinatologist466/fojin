@@ -1,0 +1,24 @@
+.reader-content {
+  font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+  font-size: 18px;
+  line-height: 2;
+  text-indent: 2em;
+  color: #2c2c2c;
+  white-space: pre-wrap;
+  word-break: break-all;
+  padding: 24px 32px;
+  background: #fff;
+  min-height: 400px;
+}
+
+.reader-content p {
+  margin-bottom: 0.5em;
+  text-indent: 2em;
+}
+
+.reader-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+}

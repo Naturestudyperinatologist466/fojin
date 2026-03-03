@@ -1,83 +1,108 @@
-import { Typography, Space, Statistic, Row, Col, Card } from "antd";
-import { BookOutlined, DatabaseOutlined } from "@ant-design/icons";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import SearchBar from "../components/SearchBar";
-import { getStats } from "../api/client";
-
-const { Title, Paragraph } = Typography;
+import {
+  DatabaseOutlined,
+  SearchOutlined,
+  UpOutlined,
+  DownOutlined,
+} from "@ant-design/icons";
+import SourceSelector from "../components/SourceSelector";
+import { getStats, getSources, getFilters } from "../api/client";
+import "../styles/home.css";
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { data: stats } = useQuery({
-    queryKey: ["stats"],
-    queryFn: getStats,
-  });
+  const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleSearch = (value: string) => {
-    if (value.trim()) {
-      navigate(`/search?q=${encodeURIComponent(value.trim())}`);
+  const { data: stats } = useQuery({ queryKey: ["stats"], queryFn: getStats });
+  const { data: sources } = useQuery({ queryKey: ["sources"], queryFn: getSources });
+  const { data: filters } = useQuery({ queryKey: ["filters"], queryFn: getFilters });
+
+  const handleSearch = () => {
+    if (query.trim()) {
+      const params = new URLSearchParams({ q: query.trim() });
+      if (selectedSources.size > 0) {
+        params.set("sources", Array.from(selectedSources).join(","));
+      }
+      navigate(`/search?${params.toString()}`);
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleSearch();
+  };
+
+  const langAllCount = filters?.languages_all?.length || 0;
+  const srcCount = sources?.length || 0;
+  const srcLabel = selectedSources.size > 0
+    ? `已选 ${selectedSources.size} 源`
+    : "全部数据源";
+
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "calc(100vh - 200px)",
-        padding: "40px 20px",
-      }}
-    >
-      <Space direction="vertical" align="center" size="large">
-        <Title
-          style={{
-            fontSize: 56,
-            color: "#1a1a2e",
-            letterSpacing: 12,
-            marginBottom: 0,
-          }}
-        >
-          佛津
-        </Title>
-        <Title
-          level={3}
-          style={{ color: "#8b7355", fontWeight: 400, marginTop: 0 }}
-        >
-          FoJin — 全球佛教古籍数字资源聚合平台
-        </Title>
-        <Paragraph
-          type="secondary"
-          style={{ fontSize: 16, textAlign: "center", maxWidth: 500 }}
-        >
-          聚合 CBETA 等多家数字化佛教典藏，提供统一检索与浏览
-        </Paragraph>
-        <SearchBar onSearch={handleSearch} />
-        {stats && (
-          <Row gutter={24} style={{ marginTop: 40 }}>
-            <Col>
-              <Card size="small">
-                <Statistic
-                  title="收录典籍"
-                  value={stats.total_texts}
-                  prefix={<BookOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col>
-              <Card size="small">
-                <Statistic
-                  title="数据来源"
-                  value="CBETA"
-                  prefix={<DatabaseOutlined />}
-                />
-              </Card>
-            </Col>
-          </Row>
-        )}
-      </Space>
+    <div className="home-page">
+      <section className="home-hero">
+        <h1 className="home-title">
+          <span className="home-title-accent">佛</span>津
+        </h1>
+        <div className="home-subtitle">全球佛教古籍数字资源聚合平台</div>
+
+        {/* 合并搜索栏 */}
+        <div className="search-combo">
+          <div className="search-combo-bar">
+            <button
+              className="search-combo-src"
+              onClick={() => setSourceOpen(!sourceOpen)}
+            >
+              <DatabaseOutlined />
+              <span>{srcLabel}</span>
+              <span className="search-combo-badge">{srcCount}</span>
+              {sourceOpen ? <UpOutlined /> : <DownOutlined />}
+            </button>
+            <div className="search-combo-divider" />
+            <input
+              ref={inputRef}
+              className="search-combo-input"
+              placeholder="输入经名、编号、译者..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            <button className="search-combo-btn" onClick={handleSearch}>
+              <SearchOutlined /> 搜索
+            </button>
+          </div>
+
+          {/* 数据源面板 */}
+          {sourceOpen && sources && (
+            <SourceSelector
+              sources={sources}
+              selected={selectedSources}
+              onChange={setSelectedSources}
+            />
+          )}
+        </div>
+
+        <div className="home-stats">
+          <div className="home-stat-item">
+            <div className="home-stat-num">
+              {stats ? stats.total_texts.toLocaleString() : "—"}
+            </div>
+            <div className="home-stat-lbl">收录典籍</div>
+          </div>
+          <div className="home-stat-item">
+            <div className="home-stat-num">{srcCount || "—"}</div>
+            <div className="home-stat-lbl">数据来源</div>
+          </div>
+          <div className="home-stat-item">
+            <div className="home-stat-num">{langAllCount || "—"}</div>
+            <div className="home-stat-lbl">关联语种</div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

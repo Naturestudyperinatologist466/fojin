@@ -1,0 +1,20 @@
+.parallel-reader-col {
+  height: 70vh;
+  overflow-y: auto;
+}
+
+.parallel-reader-col .reader-content {
+  line-height: 2;
+  font-size: 16px;
+  white-space: pre-wrap;
+  padding: 16px;
+}
+
+.parallel-reader-col::-webkit-scrollbar {
+  width: 6px;
+}
+
+.parallel-reader-col::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 3px;
+}

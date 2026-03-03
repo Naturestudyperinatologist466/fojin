@@ -1,0 +1,338 @@
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Input, Select, Tag, Empty, Spin } from "antd";
+import {
+  SearchOutlined, LinkOutlined, GlobalOutlined,
+  DatabaseOutlined, BookOutlined, ApiOutlined,
+  FileImageOutlined, ReadOutlined,
+} from "@ant-design/icons";
+import { getSources, type DataSource } from "../api/client";
+import {
+  buildSearchUrlWithFallback,
+  getLangName,
+} from "../utils/sourceUrls";
+import "../styles/sources.css";
+
+function getCategory(s: DataSource): string {
+  const n = s.name_zh + (s.name_en || "");
+  if (/翻译|Translation/i.test(n)) return "翻译项目";
+  if (/图书馆|Library/i.test(n)) return "图书馆";
+  if (/大学|University|Univ|Institute/i.test(n)) return "高校研究";
+  if (/博物馆|Museum/i.test(n)) return "博物馆";
+  if (/寺|Temple|Monastery|Order/i.test(n)) return "寺院";
+  if (/研究|Academy|Research|Society|Foundation/i.test(n)) return "研究机构";
+  if (/辞典|词典|Dictionary|百科|Wiki|Encyclopedia/i.test(n)) return "辞典百科";
+  if (/写本|手稿|Manuscript|MSS|Palm/i.test(n)) return "写本项目";
+  if (/数据|Digital|电子|CBETA|BDRC|数字/i.test(n)) return "数字项目";
+  return "其他";
+}
+
+function getChannelLabel(channelType: string): string {
+  if (channelType === "git") return "Git";
+  if (channelType === "bulk_dump") return "批量";
+  if (channelType === "api") return "API";
+  return channelType;
+}
+
+const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  "数字项目": <DatabaseOutlined />,
+  "图书馆": <BookOutlined />,
+  "高校研究": <BookOutlined />,
+  "翻译项目": <GlobalOutlined />,
+};
+
+export default function SourcesPage() {
+  const [search, setSearch] = useState("");
+  const [regionFilter, setRegionFilter] = useState("all");
+  const [langFilter, setLangFilter] = useState("all");
+  const [catFilter, setCatFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const { data: sources, isLoading } = useQuery({
+    queryKey: ["sources"],
+    queryFn: getSources,
+  });
+
+  // 提取可用筛选项
+  const regionOrder = ["中国大陆", "中国台湾", "中国香港", "中国澳门", "日本", "韩国", "越南", "泰国", "缅甸", "斯里兰卡", "印度", "尼泊尔", "不丹", "蒙古", "老挝", "柬埔寨", "美国", "加拿大", "英国", "德国", "法国", "荷兰", "比利时", "奥地利", "挪威", "丹麦", "意大利", "西班牙", "捷克", "俄罗斯", "澳大利亚", "国际"];
+  const regions = useMemo(() => {
+    if (!sources) return [];
+    const set = new Set<string>();
+    sources.forEach((s) => set.add(s.region || "其他"));
+    return Array.from(set).sort((a, b) => {
+      if (a === "其他") return 1;
+      if (b === "其他") return -1;
+      const ia = regionOrder.indexOf(a);
+      const ib = regionOrder.indexOf(b);
+      return (ia === -1 ? 98 : ia) - (ib === -1 ? 98 : ib);
+    });
+  }, [sources]);
+
+  const languages = useMemo(() => {
+    if (!sources) return [];
+    const set = new Set<string>();
+    sources.forEach((s) => {
+      if (s.languages) s.languages.split(",").forEach((l) => set.add(l.trim()));
+    });
+    return Array.from(set).sort();
+  }, [sources]);
+
+  const categories = useMemo(() => {
+    if (!sources) return [];
+    const set = new Set<string>();
+    sources.forEach((s) => set.add(getCategory(s)));
+    return Array.from(set).sort();
+  }, [sources]);
+
+  // 筛选
+  const filtered = useMemo(() => {
+    if (!sources) return [];
+    return sources.filter((s) => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (
+          !s.name_zh.toLowerCase().includes(q) &&
+          !(s.name_en || "").toLowerCase().includes(q) &&
+          !(s.description || "").toLowerCase().includes(q) &&
+          !s.code.toLowerCase().includes(q)
+        )
+          return false;
+      }
+      if (regionFilter !== "all" && (s.region || "其他") !== regionFilter) return false;
+      if (langFilter !== "all") {
+        const langs = (s.languages || "").split(",").map((l) => l.trim());
+        if (!langs.includes(langFilter)) return false;
+      }
+      if (catFilter !== "all" && getCategory(s) !== catFilter) return false;
+      return true;
+    });
+  }, [sources, search, regionFilter, langFilter, catFilter]);
+
+  // 按地区分组
+  const grouped = useMemo(() => {
+    const map: Record<string, DataSource[]> = {};
+    for (const s of filtered) {
+      const r = s.region || "其他";
+      if (!map[r]) map[r] = [];
+      map[r].push(s);
+    }
+    // 排序：中国大陆第一，中国台湾第二，其他最后
+    return Object.entries(map).sort(([a], [b]) => {
+      if (a === "其他") return 1;
+      if (b === "其他") return -1;
+      const ia = regionOrder.indexOf(a);
+      const ib = regionOrder.indexOf(b);
+      return (ia === -1 ? 98 : ia) - (ib === -1 ? 98 : ib);
+    });
+  }, [filtered]);
+
+  const localCount = useMemo(() => (sources || []).filter((s) => s.has_local_fulltext).length, [sources]);
+  const remoteCount = useMemo(() => (sources || []).filter((s) => s.has_remote_fulltext).length, [sources]);
+  const directSearchCount = useMemo(
+    () => (sources || []).filter((s) => s.supports_search).length,
+    [sources],
+  );
+  const iiifCount = useMemo(() => (sources || []).filter((s) => s.supports_iiif).length, [sources]);
+  const apiCount = useMemo(() => (sources || []).filter((s) => s.supports_api).length, [sources]);
+
+  if (isLoading) {
+    return (
+      <div style={{ textAlign: "center", padding: 80 }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="sources-page">
+      <div className="sources-header">
+        <h1 className="sources-title">数据源导航</h1>
+        <p className="sources-desc">
+          聚合全球 {sources?.length || 0} 个佛教数字资源：
+          {directSearchCount} 可搜索 · {localCount} 已入库全文 · {remoteCount} 外站全文 · {iiifCount} 影像 · {apiCount} API
+        </p>
+      </div>
+
+      {/* 搜索与过滤栏 */}
+      <div className="sources-toolbar">
+        <Input
+          prefix={<SearchOutlined style={{ color: "#9a8e7a" }} />}
+          placeholder="搜索数据源名称、描述..."
+          allowClear
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ width: 260 }}
+        />
+        <Select
+          value={regionFilter}
+          onChange={setRegionFilter}
+          style={{ width: 140 }}
+          options={[
+            { value: "all", label: `全部地区 (${regions.length})` },
+            ...regions.map((r) => ({ value: r, label: r })),
+          ]}
+        />
+        <Select
+          value={langFilter}
+          onChange={setLangFilter}
+          style={{ width: 140 }}
+          options={[
+            { value: "all", label: `全部语种 (${languages.length})` },
+            ...languages.map((l) => ({ value: l, label: getLangName(l) })),
+          ]}
+        />
+        <Select
+          value={catFilter}
+          onChange={setCatFilter}
+          style={{ width: 140 }}
+          options={[
+            { value: "all", label: `全部类型 (${categories.length})` },
+            ...categories.map((c) => ({ value: c, label: c })),
+          ]}
+        />
+
+        {/* 试搜功能 */}
+        <div className="sources-try-search">
+          <Input.Search
+            placeholder="输入关键词试搜"
+            size="small"
+            allowClear
+            onSearch={(v) => setSearchQuery(v)}
+            style={{ width: 200 }}
+          />
+        </div>
+      </div>
+
+      <div className="sources-stats-bar">
+        当前显示 <strong>{filtered.length}</strong> / {sources?.length || 0} 个数据源
+      </div>
+
+      {filtered.length === 0 ? (
+        <Empty description="无匹配数据源" style={{ marginTop: 60 }} />
+      ) : (
+        <div className="sources-groups">
+          {grouped.map(([region, items]) => (
+            <div key={region} className="sources-group">
+              <div className="sources-group-header">
+                <span className="sources-group-name">{region}</span>
+                <span className="sources-group-count">{items.length}</span>
+              </div>
+              <div className="sources-grid">
+                {items.map((s) => {
+                  const cat = getCategory(s);
+                  const langs = (s.languages || "").split(",").map((l) => l.trim()).filter(Boolean);
+                  const distributions = (s.distributions || [])
+                    .filter((d) => d.is_active)
+                    .slice(0, 5);
+                  const searchUrl = searchQuery
+                    ? buildSearchUrlWithFallback(s.code, s.base_url, searchQuery)
+                    : null;
+
+                  return (
+                    <div key={s.code} className="source-card">
+                      <div className="source-card-top">
+                        <span className="source-card-icon">
+                          {CATEGORY_ICONS[cat] || <GlobalOutlined />}
+                        </span>
+                        <div className="source-card-titles">
+                          <span className="source-card-name">{s.name_zh}</span>
+                          {s.name_en && (
+                            <span className="source-card-name-en">{s.name_en}</span>
+                          )}
+                        </div>
+                        <div className="source-card-badges">
+                          {s.has_local_fulltext && (
+                            <Tag color="green" style={{ fontSize: 10, margin: 0, lineHeight: "16px", padding: "0 4px" }}>
+                              <ReadOutlined /> 已入库
+                            </Tag>
+                          )}
+                          {s.has_remote_fulltext && !s.has_local_fulltext && (
+                            <Tag color="cyan" style={{ fontSize: 10, margin: 0, lineHeight: "16px", padding: "0 4px" }}>
+                              <ReadOutlined /> 外站全文
+                            </Tag>
+                          )}
+                          {s.supports_search && (
+                            <Tag color="blue" style={{ fontSize: 10, margin: 0, lineHeight: "16px", padding: "0 4px" }}>
+                              <SearchOutlined /> 可搜索
+                            </Tag>
+                          )}
+                          {s.supports_iiif && (
+                            <Tag color="purple" style={{ fontSize: 10, margin: 0, lineHeight: "16px", padding: "0 4px" }}>
+                              <FileImageOutlined /> 影像
+                            </Tag>
+                          )}
+                          {s.supports_api && (
+                            <Tag color="orange" style={{ fontSize: 10, margin: 0, lineHeight: "16px", padding: "0 4px" }}>
+                              <ApiOutlined /> API
+                            </Tag>
+                          )}
+                        </div>
+                      </div>
+
+                      {s.description && (
+                        <p className="source-card-desc">{s.description}</p>
+                      )}
+
+                      {distributions.length > 0 && (
+                        <div className="source-card-dists">
+                          <div className="source-card-dists-title">官方分发端</div>
+                          <div className="source-card-dists-list">
+                            {distributions.map((d) => (
+                              <a
+                                key={d.code}
+                                href={d.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`source-dist-link${d.is_primary_ingest ? " is-primary" : ""}`}
+                                title={d.license_note || d.name}
+                              >
+                                <span className="source-dist-name">{d.name}</span>
+                                <span className="source-dist-meta">
+                                  {getChannelLabel(d.channel_type)}
+                                  {d.format ? ` · ${d.format}` : ""}
+                                </span>
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="source-card-langs">
+                        {langs.map((l) => (
+                          <span key={l} className="source-lang-tag">{getLangName(l)}</span>
+                        ))}
+                      </div>
+
+                      <div className="source-card-actions">
+                        {s.base_url && (
+                          <a
+                            href={s.base_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="source-btn"
+                          >
+                            <GlobalOutlined /> 访问网站
+                          </a>
+                        )}
+                        {searchUrl && (
+                          <a
+                            href={searchUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="source-btn source-btn-search"
+                          >
+                            <LinkOutlined /> 搜索「{searchQuery}」
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

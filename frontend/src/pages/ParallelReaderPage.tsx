@@ -1,0 +1,138 @@
+import { useParams, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Typography, Spin, Row, Col, Card, Select, InputNumber, Space, Empty, Button } from "antd";
+import { SwapOutlined, ArrowLeftOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
+import { getParallelRead, getTextRelations } from "../api/client";
+
+const { Title, Paragraph } = Typography;
+
+export default function ParallelReaderPage() {
+  const { textId } = useParams<{ textId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const compareId = searchParams.get("compare");
+  const juan = Number(searchParams.get("juan") || "1");
+
+  const { data: relations } = useQuery({
+    queryKey: ["relations", textId],
+    queryFn: () => getTextRelations(Number(textId)),
+    enabled: !!textId,
+  });
+
+  const { data: parallel, isLoading } = useQuery({
+    queryKey: ["parallel", textId, compareId, juan],
+    queryFn: () => getParallelRead(Number(textId), Number(compareId), juan),
+    enabled: !!textId && !!compareId,
+  });
+
+  const handleCompareChange = (value: number) => {
+    setSearchParams({ compare: String(value), juan: String(juan) });
+  };
+
+  const handleJuanChange = (value: number | null) => {
+    if (value && compareId) {
+      setSearchParams({ compare: compareId, juan: String(value) });
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 1400, margin: "24px auto", padding: "0 16px" }}>
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
+          返回
+        </Button>
+        <Title level={3} style={{ margin: 0 }}>
+          <SwapOutlined /> 平行对照阅读
+        </Title>
+      </Space>
+
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <span>对照版本：</span>
+          <Select
+            style={{ width: 400 }}
+            placeholder="选择对照文本"
+            value={compareId ? Number(compareId) : undefined}
+            onChange={handleCompareChange}
+            options={
+              relations?.relations.map((r) => ({
+                value: r.text_id,
+                label: `${r.title_zh} (${r.translator || "佚名"} · ${r.dynasty || ""}) [${r.relation_type}]`,
+              })) || []
+            }
+          />
+          <span>卷：</span>
+          <InputNumber min={1} value={juan} onChange={handleJuanChange} />
+        </Space>
+      </Card>
+
+      {!compareId ? (
+        <Empty description="请选择对照文本" />
+      ) : isLoading ? (
+        <div style={{ textAlign: "center", padding: 80 }}>
+          <Spin size="large" />
+        </div>
+      ) : !parallel ? (
+        <Empty description="对照内容未找到" />
+      ) : (
+        <Row gutter={16}>
+          <Col span={12}>
+            <Card
+              title={
+                <span>
+                  {parallel.text_a.title_zh}
+                  {parallel.text_a.translator && (
+                    <span style={{ fontWeight: "normal", fontSize: 13, marginLeft: 8, color: "#888" }}>
+                      {parallel.text_a.translator}
+                    </span>
+                  )}
+                </span>
+              }
+              size="small"
+            >
+              <div
+                style={{
+                  maxHeight: "70vh",
+                  overflow: "auto",
+                  lineHeight: 2,
+                  fontSize: 16,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {parallel.text_a.content || <Paragraph type="secondary">暂无内容</Paragraph>}
+              </div>
+            </Card>
+          </Col>
+          <Col span={12}>
+            <Card
+              title={
+                <span>
+                  {parallel.text_b.title_zh}
+                  {parallel.text_b.translator && (
+                    <span style={{ fontWeight: "normal", fontSize: 13, marginLeft: 8, color: "#888" }}>
+                      {parallel.text_b.translator}
+                    </span>
+                  )}
+                </span>
+              }
+              size="small"
+            >
+              <div
+                style={{
+                  maxHeight: "70vh",
+                  overflow: "auto",
+                  lineHeight: 2,
+                  fontSize: 16,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {parallel.text_b.content || <Paragraph type="secondary">暂无内容</Paragraph>}
+              </div>
+            </Card>
+          </Col>
+        </Row>
+      )}
+    </div>
+  );
+}

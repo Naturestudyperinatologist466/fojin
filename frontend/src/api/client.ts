@@ -5,6 +5,22 @@ const api = axios.create({
   timeout: 15000,
 });
 
+// Attach JWT token from localStorage (zustand persist)
+api.interceptors.request.use((config) => {
+  try {
+    const raw = localStorage.getItem("fojin-auth");
+    if (raw) {
+      const { state } = JSON.parse(raw);
+      if (state?.token) {
+        config.headers.Authorization = `Bearer ${state.token}`;
+      }
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return config;
+});
+
 export interface SearchHit {
   id: number;
   taisho_id: string | null;
@@ -14,6 +30,8 @@ export interface SearchHit {
   dynasty: string | null;
   category: string | null;
   cbeta_url: string | null;
+  has_content: boolean;
+  source_code: string | null;
   score: number | null;
   highlight: Record<string, string[]> | null;
 }
@@ -39,16 +57,228 @@ export interface TextDetail {
   category: string | null;
   subcategory: string | null;
   cbeta_url: string | null;
+  has_content: boolean;
+  content_char_count: number;
   created_at: string;
+}
+
+export interface JuanInfo {
+  juan_num: number;
+  char_count: number;
+}
+
+export interface JuanListResponse {
+  text_id: number;
+  title_zh: string;
+  total_juans: number;
+  juans: JuanInfo[];
+}
+
+export interface JuanContentResponse {
+  text_id: number;
+  cbeta_id: string;
+  title_zh: string;
+  juan_num: number;
+  total_juans: number;
+  content: string;
+  char_count: number;
+  prev_juan: number | null;
+  next_juan: number | null;
+}
+
+export interface ContentSearchHit {
+  text_id: number;
+  cbeta_id: string;
+  title_zh: string;
+  translator: string | null;
+  dynasty: string | null;
+  juan_num: number;
+  highlight: string[];
+  score: number;
+}
+
+export interface ContentSearchResponse {
+  total: number;
+  page: number;
+  size: number;
+  results: ContentSearchHit[];
+}
+
+export interface BookmarkItem {
+  id: number;
+  text_id: number;
+  title_zh: string;
+  cbeta_id: string;
+  note: string | null;
+  created_at: string;
+}
+
+export interface HistoryItem {
+  id: number;
+  text_id: number;
+  title_zh: string;
+  cbeta_id: string;
+  juan_num: number;
+  last_read_at: string;
 }
 
 export interface Filters {
   dynasties: string[];
   categories: string[];
+  languages: string[];
+  languages_all: string[];
+  sources: string[];
 }
 
 export interface Stats {
   total_texts: number;
+}
+
+export interface TextIdentifierInfo {
+  id: number;
+  source_id: number;
+  source_code: string;
+  source_name: string;
+  source_uid: string;
+  source_url: string | null;
+}
+
+// --- Phase 2 Types ---
+
+export interface SourceDistribution {
+  id: number;
+  source_id?: number;
+  source_code?: string;
+  source_name?: string;
+  code: string;
+  name: string;
+  channel_type: string;
+  url: string;
+  format: string | null;
+  license_note: string | null;
+  is_primary_ingest: boolean;
+  priority: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface DataSource {
+  id: number;
+  code: string;
+  name_zh: string;
+  name_en: string | null;
+  base_url: string | null;
+  description: string | null;
+  access_type: "local" | "external" | "api";
+  region: string | null;
+  languages: string | null;
+  supports_search: boolean;
+  supports_fulltext: boolean;
+  has_local_fulltext: boolean;
+  has_remote_fulltext: boolean;
+  supports_iiif: boolean;
+  supports_api: boolean;
+  is_active: boolean;
+  distributions: SourceDistribution[];
+}
+
+export interface RelatedTextInfo {
+  text_id: number;
+  cbeta_id: string;
+  title_zh: string;
+  translator: string | null;
+  dynasty: string | null;
+  lang: string;
+  relation_type: string;
+  confidence: number;
+  note: string | null;
+}
+
+export interface TextRelationsResponse {
+  text_id: number;
+  title_zh: string;
+  relations: RelatedTextInfo[];
+}
+
+export interface ParallelTextContent {
+  text_id: number;
+  cbeta_id: string;
+  title_zh: string;
+  translator: string | null;
+  lang: string;
+  juan_num: number;
+  content: string;
+}
+
+export interface ParallelReadResponse {
+  text_a: ParallelTextContent;
+  text_b: ParallelTextContent;
+}
+
+export interface KGEntity {
+  id: number;
+  entity_type: string;
+  name_zh: string;
+  name_sa: string | null;
+  name_pi: string | null;
+  name_bo: string | null;
+  name_en: string | null;
+  description: string | null;
+  properties: Record<string, any> | null;
+  text_id: number | null;
+  external_ids: Record<string, string> | null;
+}
+
+export interface EntityRelationItem {
+  predicate: string;
+  direction: string;
+  target_id: number;
+  target_name: string;
+  target_type: string;
+  confidence: number;
+  source: string | null;
+}
+
+export interface KGEntityDetail extends KGEntity {
+  relations: EntityRelationItem[];
+}
+
+export interface KGSearchResponse {
+  total: number;
+  results: KGEntity[];
+}
+
+export interface KGGraphNode {
+  id: number;
+  name: string;
+  entity_type: string;
+  description: string | null;
+}
+
+export interface KGGraphLink {
+  source: number;
+  target: number;
+  predicate: string;
+  confidence: number;
+  provenance: string | null;
+  evidence: string | null;
+}
+
+export interface KGGraphResponse {
+  nodes: KGGraphNode[];
+  links: KGGraphLink[];
+  truncated: boolean;
+}
+
+export interface IIIFManifestInfo {
+  id: number;
+  text_id: number;
+  source_id: number;
+  label: string;
+  manifest_url: string;
+  thumbnail_url: string | null;
+  provider: string;
+  rights: string | null;
 }
 
 export async function searchTexts(params: {
@@ -57,6 +287,7 @@ export async function searchTexts(params: {
   size?: number;
   dynasty?: string;
   category?: string;
+  sources?: string;
 }): Promise<SearchResponse> {
   const { data } = await api.get<SearchResponse>("/search", { params });
   return data;
@@ -74,6 +305,133 @@ export async function getFilters(): Promise<Filters> {
 
 export async function getStats(): Promise<Stats> {
   const { data } = await api.get<Stats>("/stats");
+  return data;
+}
+
+// Reader APIs
+export async function getJuanList(textId: number): Promise<JuanListResponse> {
+  const { data } = await api.get<JuanListResponse>(`/texts/${textId}/juans`);
+  return data;
+}
+
+export async function getJuanContent(textId: number, juanNum: number): Promise<JuanContentResponse> {
+  const { data } = await api.get<JuanContentResponse>(`/texts/${textId}/juans/${juanNum}`);
+  return data;
+}
+
+// Content search
+export async function searchContent(params: {
+  q: string;
+  page?: number;
+  size?: number;
+  sources?: string;
+}): Promise<ContentSearchResponse> {
+  const { data } = await api.get<ContentSearchResponse>("/search/content", { params });
+  return data;
+}
+
+// Bookmarks
+export async function getBookmarks(): Promise<BookmarkItem[]> {
+  const { data } = await api.get<BookmarkItem[]>("/bookmarks");
+  return data;
+}
+
+export async function addBookmark(textId: number, note?: string): Promise<BookmarkItem> {
+  const { data } = await api.post<BookmarkItem>("/bookmarks", { text_id: textId, note });
+  return data;
+}
+
+export async function removeBookmark(textId: number): Promise<void> {
+  await api.delete(`/bookmarks/${textId}`);
+}
+
+export async function checkBookmark(textId: number): Promise<boolean> {
+  try {
+    const { data } = await api.get<{ bookmarked: boolean }>(`/bookmarks/check/${textId}`);
+    return data.bookmarked;
+  } catch {
+    return false;
+  }
+}
+
+// Reading history
+export async function getHistory(): Promise<HistoryItem[]> {
+  const { data } = await api.get<HistoryItem[]>("/history");
+  return data;
+}
+
+// --- Phase 2 APIs ---
+
+// Data Sources
+export async function getSources(): Promise<DataSource[]> {
+  const { data } = await api.get<DataSource[]>("/sources");
+  return data;
+}
+
+export async function getPrimaryIngestDistributions(): Promise<SourceDistribution[]> {
+  const { data } = await api.get<SourceDistribution[]>("/sources/ingest/primary");
+  return data;
+}
+
+export async function getTextIdentifiers(textId: number): Promise<TextIdentifierInfo[]> {
+  const { data } = await api.get<TextIdentifierInfo[]>(`/sources/texts/${textId}/identifiers`);
+  return data;
+}
+
+// Text Relations
+export async function getTextRelations(textId: number): Promise<TextRelationsResponse> {
+  const { data } = await api.get<TextRelationsResponse>(`/texts/${textId}/relations`);
+  return data;
+}
+
+export async function getParallelRead(
+  textId: number,
+  compareId: number,
+  juan: number = 1
+): Promise<ParallelReadResponse> {
+  const { data } = await api.get<ParallelReadResponse>(`/texts/${textId}/parallel-read`, {
+    params: { compare: compareId, juan },
+  });
+  return data;
+}
+
+// Knowledge Graph
+export async function searchKGEntities(
+  q: string,
+  entityType?: string,
+  limit: number = 20,
+  hasRelations?: boolean,
+): Promise<KGSearchResponse> {
+  const { data } = await api.get<KGSearchResponse>("/kg/entities", {
+    params: { q, entity_type: entityType, limit, has_relations: hasRelations },
+  });
+  return data;
+}
+
+export async function getKGEntity(entityId: number): Promise<KGEntityDetail> {
+  const { data } = await api.get<KGEntityDetail>(`/kg/entities/${entityId}`);
+  return data;
+}
+
+export async function getKGEntityGraph(
+  entityId: number,
+  depth: number = 2,
+  maxNodes: number = 150,
+  predicates?: string[],
+): Promise<KGGraphResponse> {
+  const { data } = await api.get<KGGraphResponse>(`/kg/entities/${entityId}/graph`, {
+    params: {
+      depth,
+      max_nodes: maxNodes,
+      predicates: predicates?.length ? predicates.join(",") : undefined,
+    },
+  });
+  return data;
+}
+
+// IIIF Manifests
+export async function getTextManifests(textId: number): Promise<IIIFManifestInfo[]> {
+  const { data } = await api.get<IIIFManifestInfo[]>(`/iiif/texts/${textId}/manifests`);
   return data;
 }
 

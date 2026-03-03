@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -9,19 +10,42 @@ import {
   Card,
   Tag,
 } from "antd";
-import { ArrowLeftOutlined } from "@ant-design/icons";
-import { getTextDetail } from "../api/client";
+import {
+  ArrowLeftOutlined,
+  ReadOutlined,
+  FileImageOutlined,
+  BookOutlined,
+  FileTextOutlined,
+} from "@ant-design/icons";
+import { getTextDetail, getTextManifests, getTextIdentifiers } from "../api/client";
+import { buildCbetaReadUrl } from "../utils/sourceUrls";
 import ResourceList from "../components/ResourceList";
+import BookmarkButton from "../components/BookmarkButton";
+import RelatedTexts from "../components/RelatedTexts";
+import CitationGenerator from "../components/CitationGenerator";
 
 const { Title } = Typography;
 
 export default function TextDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [citationOpen, setCitationOpen] = useState(false);
 
   const { data: text, isLoading } = useQuery({
     queryKey: ["text", id],
     queryFn: () => getTextDetail(Number(id)),
+    enabled: !!id,
+  });
+
+  const { data: manifests } = useQuery({
+    queryKey: ["manifests", id],
+    queryFn: () => getTextManifests(Number(id)),
+    enabled: !!id,
+  });
+
+  const { data: identifiers } = useQuery({
+    queryKey: ["identifiers", id],
+    queryFn: () => getTextIdentifiers(Number(id)),
     enabled: !!id,
   });
 
@@ -42,8 +66,25 @@ export default function TextDetailPage() {
   }
 
   const resources = [];
+  // CBETA 在线阅读链接
   if (text.cbeta_url) {
     resources.push({ label: "CBETA 在线阅读", url: text.cbeta_url });
+  } else {
+    const cbetaUrl = buildCbetaReadUrl(text.cbeta_id);
+    if (cbetaUrl) {
+      resources.push({ label: "前往 CBETA 阅读", url: cbetaUrl });
+    }
+  }
+  // 多数据源链接（来自 TextIdentifier）
+  if (identifiers) {
+    for (const ident of identifiers) {
+      if (ident.source_url) {
+        resources.push({
+          label: `${ident.source_name} (${ident.source_uid})`,
+          url: ident.source_url,
+        });
+      }
+    }
   }
 
   return (
@@ -112,7 +153,51 @@ export default function TextDetailPage() {
           </Descriptions>
         </Card>
 
+        <Space>
+          {text.has_content && (
+            <Button
+              type="primary"
+              size="large"
+              icon={<ReadOutlined />}
+              onClick={() => navigate(`/read/${text.id}`)}
+            >
+              开始阅读
+            </Button>
+          )}
+          <BookmarkButton textId={text.id} />
+          {manifests && manifests.length > 0 && (
+            <Button
+              icon={<FileImageOutlined />}
+              onClick={() => navigate(`/manuscripts/${text.id}`)}
+            >
+              手稿影像 ({manifests.length})
+            </Button>
+          )}
+          {/* TODO: 引用格式生成器和笔记功能待后端完善后启用
+          <Button
+            icon={<BookOutlined />}
+            onClick={() => setCitationOpen(true)}
+          >
+            引用
+          </Button>
+          <Button
+            icon={<FileTextOutlined />}
+            onClick={() => navigate("/notes")}
+          >
+            笔记
+          </Button>
+          */}
+        </Space>
+
+        <CitationGenerator
+          textId={text.id}
+          open={citationOpen}
+          onClose={() => setCitationOpen(false)}
+        />
+
         <ResourceList resources={resources} />
+
+        <RelatedTexts textId={text.id} />
       </Space>
     </div>
   );
