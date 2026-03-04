@@ -105,7 +105,7 @@ const SEARCH_PATTERNS: Record<string, (q: string) => string> = {
   "cpd-cologne": (q) => `https://cpd.uni-koeln.de/search?q=${q}`,
   "pali-dict-sutta": (q) => `https://dictionary.sutta.org/?search=${q}`,
   "ped-dsal": (q) => `https://dsal.uchicago.edu/cgi-bin/app/pali_query.py?ession=&matchtype=default&query=${q}`,
-  "pali-canon-online": (q) => `https://www.palicanon.org/?s=${q}`,
+  "pali-canon-online": (q) => `http://www.palicanon.org/?s=${q}`,
 
   // ===== 0022 新增 — 藏文 =====
   "tibetan-buddhist-encyclopedia": (q) => `https://tibetanbuddhistencyclopedia.com/en/index.php?search=${q}`,
@@ -128,7 +128,7 @@ const SEARCH_PATTERNS: Record<string, (q: string) => string> = {
   "nti-reader": (q) => `https://ntireader.org/words?query=${q}`,
   "frogbear": (q) => `https://frogbear.org/search?q=${q}`,
   "jinglu-cbeta": (q) => `https://jinglu.cbeta.org/search?q=${q}`,
-  "acmuller-dict": (q) => `https://www.acmuller.net/cgi-bin/xprsearch.pl?query=${q}`,
+  "acmuller-dict": (q) => `http://www.acmuller.net/cgi-bin/xprsearch.pl?query=${q}`,
   // lancaster-catalog: 纯静态 HTML 目录，无搜索功能，回退至 Google site: 搜索
   "ddm-library": (q) => `https://ddc.shengyen.org/search?q=${q}`,
   "koreanbuddhism": (q) => `https://www.koreanbuddhism.net/search?q=${q}`,
@@ -156,7 +156,7 @@ const SEARCH_PATTERNS: Record<string, (q: string) => string> = {
   "compassion-network": (q) => `https://thecompassionnetwork.org/digital-english-canon/?s=${q}`,
   "otdo": (q) => `https://otdo.aa-ken.jp/search.cgi?query=${q}`,
   "ltwa-resource": (q) => `https://ltwaresource.info/?s=${q}`,
-  "dtab-bonn": (q) => `https://dtab.crossasia.org/search?q=${q}`,
+  "dtab-bonn": (q) => `https://iiif.crossasia.org/s/dtab?q=${q}`,
   "cudl-cambridge": (q) => `https://cudl.lib.cam.ac.uk/search?keyword=${q}`,
   "digital-bodleian": (q) => `https://digital.bodleian.ox.ac.uk/search?q=${q}`,
   "dharma-torch": (q) => `https://dharmatorch.com/?s=${q}`,
