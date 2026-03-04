@@ -391,6 +391,8 @@ export const LANG_NAMES: Record<string, string> = {
   nl: "荷兰文",
   pt: "葡萄牙文",
   ne: "尼泊尔文",
+  hi: "印地文",
+  jv: "爪哇文",
 };
 
 export function getLangName(code: string): string {
