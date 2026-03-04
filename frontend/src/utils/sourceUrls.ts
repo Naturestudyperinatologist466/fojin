@@ -129,7 +129,7 @@ const SEARCH_PATTERNS: Record<string, (q: string) => string> = {
   "frogbear": (q) => `https://frogbear.org/search?q=${q}`,
   "jinglu-cbeta": (q) => `https://jinglu.cbeta.org/search?q=${q}`,
   "acmuller-dict": (q) => `https://www.acmuller.net/cgi-bin/xprsearch.pl?query=${q}`,
-  "lancaster-catalog": (q) => `https://www.acmuller.net/descriptive_catalogue/search.html?q=${q}`,
+  // lancaster-catalog: 纯静态 HTML 目录，无搜索功能，回退至 Google site: 搜索
   "ddm-library": (q) => `https://ddc.shengyen.org/search?q=${q}`,
   "koreanbuddhism": (q) => `https://www.koreanbuddhism.net/search?q=${q}`,
   "himalayan-art": (q) => `https://www.himalayanart.org/search?q=${q}`,
