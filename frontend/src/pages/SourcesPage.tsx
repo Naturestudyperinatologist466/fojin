@@ -71,11 +71,18 @@ export default function SourcesPage() {
   const langOrder = ["lzh", "zh", "sa", "pi", "bo", "en", "ja", "ko"];
   const languages = useMemo(() => {
     if (!sources) return [];
-    const set = new Set<string>();
+    // 按中文名去重（如 xto/txb 都映射为"吐火罗语"，只保留一个代表代码）
+    const nameToCode = new Map<string, string>();
+    const allCodes = new Set<string>();
     sources.forEach((s) => {
-      if (s.languages) s.languages.split(",").forEach((l) => set.add(l.trim()));
+      if (s.languages) s.languages.split(",").forEach((l) => {
+        const code = l.trim();
+        allCodes.add(code);
+        const name = getLangName(code);
+        if (!nameToCode.has(name)) nameToCode.set(name, code);
+      });
     });
-    return Array.from(set).sort((a, b) => {
+    return Array.from(nameToCode.values()).sort((a, b) => {
       const ia = langOrder.indexOf(a);
       const ib = langOrder.indexOf(b);
       return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
@@ -113,7 +120,8 @@ export default function SourcesPage() {
       if (regionFilter !== "all" && (s.region || "其他") !== regionFilter) return false;
       if (langFilter !== "all") {
         const langs = (s.languages || "").split(",").map((l) => l.trim());
-        if (!langs.includes(langFilter)) return false;
+        const filterName = getLangName(langFilter);
+        if (!langs.some((l) => getLangName(l) === filterName)) return false;
       }
       if (catFilter !== "all" && getCategory(s) !== catFilter) return false;
       return true;
@@ -232,7 +240,10 @@ export default function SourcesPage() {
               <div className="sources-grid">
                 {items.map((s) => {
                   const cat = getCategory(s);
-                  const langs = (s.languages || "").split(",").map((l) => l.trim()).filter(Boolean)
+                  const langs = [...new Map(
+                    (s.languages || "").split(",").map((l) => l.trim()).filter(Boolean)
+                      .map((l) => [getLangName(l), l] as const)
+                  ).values()]
                     .sort((a, b) => {
                       const ia = langOrder.indexOf(a);
                       const ib = langOrder.indexOf(b);
