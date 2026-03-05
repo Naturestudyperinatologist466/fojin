@@ -249,6 +249,15 @@
   border-bottom: 1px dashed var(--fj-border);
 }
 
+/* ---------- 辞典释义 ---------- */
+.s-dict-def {
+  line-height: 1.8;
+  font-size: 13px;
+  color: var(--fj-ink-light);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* ---------- 响应式 ---------- */
 @media (max-width: 768px) {
   .s-layout {

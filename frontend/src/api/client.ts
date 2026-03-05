@@ -453,6 +453,34 @@ export async function getKGEntityGraph(
   return data;
 }
 
+// Dictionary
+export interface DictEntry {
+  id: number;
+  headword: string;
+  reading: string | null;
+  definition: string;
+  lang: string;
+  source_code: string | null;
+  source_name: string | null;
+}
+
+export interface DictSearchResponse {
+  total: number;
+  page: number;
+  size: number;
+  results: DictEntry[];
+}
+
+export async function searchDictionary(params: {
+  q: string;
+  page?: number;
+  size?: number;
+  lang?: string;
+}): Promise<DictSearchResponse> {
+  const { data } = await api.get<DictSearchResponse>("/dictionary/search", { params });
+  return data;
+}
+
 // IIIF Manifests
 export async function getTextManifests(textId: number): Promise<IIIFManifestInfo[]> {
   const { data } = await api.get<IIIFManifestInfo[]>(`/iiif/texts/${textId}/manifests`);

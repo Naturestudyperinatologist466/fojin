@@ -29,9 +29,14 @@ async def search_dictionary(
     total = (await db.execute(count_stmt)).scalar() or 0
 
     # Paginate
-    stmt = stmt.order_by(DictionaryEntry.headword).offset((page - 1) * size).limit(size)
+    stmt = (
+        stmt.options(joinedload(DictionaryEntry.source))
+        .order_by(DictionaryEntry.headword)
+        .offset((page - 1) * size)
+        .limit(size)
+    )
     result = await db.execute(stmt)
-    entries = result.scalars().all()
+    entries = result.unique().scalars().all()
 
     return {
         "total": total,
@@ -45,6 +50,8 @@ async def search_dictionary(
                 "definition": e.definition,
                 "lang": e.lang,
                 "source_id": e.source_id,
+                "source_code": e.source.code if e.source else None,
+                "source_name": e.source.name_zh if e.source else None,
                 "external_id": e.external_id,
             }
             for e in entries

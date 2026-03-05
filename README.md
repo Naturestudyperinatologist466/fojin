@@ -72,6 +72,7 @@ pytest tests/ -q
 
 - **全文检索**：基于 Elasticsearch 的全文搜索与元数据检索，支持朝代、部类、语种、数据源等多维度筛选
 - **联合检索**：并发查询本地数据库 + 典津跨平台 72.8 万条古籍资源，结果合并展示
+- **辞典检索**：搜索页第 4 个 Tab，在 237,593 条多语种辞典词条（中文、巴利文、梵文）中检索词头，支持语种筛选，显示来源辞典标签
 - **佛学辞典**：内置 237,593 条多语种辞典词条（中文、巴利文、梵文），覆盖 6 部权威辞典
 
 ### 内容阅读
@@ -141,6 +142,7 @@ DIANJIN_API_KEY=sk-gcis-your-api-key-here
 | `GET /api/dianjin/institutions` | 机构列表（含地区信息） |
 | `POST /api/dianjin/search` | 代理搜索到典津（需 API Key） |
 | `GET /api/search/federated` | 联合检索（本地 + 典津并发） |
+| `GET /api/dictionary/search` | 辞典词条搜索（支持 q/lang/page/size 参数） |
 
 ## 数据源分发端
 
@@ -202,7 +204,7 @@ python scripts/import_all.py
 - **缓存**：Redis 7
 - **跨平台联检**：典津 API (guji.cckb.cn) + httpx AsyncClient
 - **SEO**：react-helmet-async 动态 meta + JSON-LD 结构化数据 + sitemap.xml + 按路由静态 HTML 生成
-- **部署**：Docker Compose
+- **部署**：Docker Compose + Nginx（gzip_static 预压缩 + 静态资源长缓存）
 - **CI**：GitHub Actions
 
 ## 部署

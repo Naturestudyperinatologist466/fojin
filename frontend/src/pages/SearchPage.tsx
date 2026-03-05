@@ -6,11 +6,11 @@ import {
   Pagination, Spin, Empty, Checkbox, Input, Tag, Button, Tabs, Result, Select, Typography,
 } from "antd";
 import {
-  SearchOutlined, EyeOutlined, LinkOutlined, ReadOutlined, CloudOutlined,
+  SearchOutlined, EyeOutlined, LinkOutlined, ReadOutlined, CloudOutlined, BookOutlined,
 } from "@ant-design/icons";
 import BookmarkButton from "../components/BookmarkButton";
 import { Alert } from "antd";
-import { searchTexts, searchContent, getSources, type SearchHit, type DataSource } from "../api/client";
+import { searchTexts, searchContent, searchDictionary, getSources, type SearchHit, type DataSource, type DictEntry } from "../api/client";
 import { federatedSearch, type DianjinSearchHit } from "../api/dianjin";
 import { buildSearchUrl, hasDirectSearchUrl, getSourceLabel, buildSourceReadUrl } from "../utils/sourceUrls";
 import { sanitizeHighlight } from "../utils/sanitize";
@@ -137,6 +137,38 @@ function DianjinCard({ hit, rank }: { hit: DianjinSearchHit; rank: number }) {
   );
 }
 
+/* ---- 辞典结果卡片 ---- */
+function DictCard({ hit, rank }: { hit: DictEntry; rank: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const needsTruncate = hit.definition.length > 300;
+  const displayDef = needsTruncate && !expanded ? hit.definition.slice(0, 300) + "..." : hit.definition;
+  const langLabel: Record<string, string> = { zh: "中文", pi: "巴利文", sa: "梵文", en: "英文" };
+
+  return (
+    <div className="s-card">
+      <div className="s-card-rank">排序<br />#{rank}</div>
+      <div className="s-card-body">
+        <div className="s-card-title">
+          {hit.headword}
+          {hit.reading && <span style={{ fontSize: 14, fontWeight: 400, color: "var(--fj-ink-light)", marginLeft: 8 }}>({hit.reading})</span>}
+        </div>
+        <div className="s-card-tags">
+          <Tag color="green" style={{ fontSize: 11 }}>{langLabel[hit.lang] || hit.lang}</Tag>
+          {hit.source_name && <Tag color="volcano" style={{ fontSize: 11 }}>{hit.source_name}</Tag>}
+        </div>
+        <div className="s-card-meta">
+          <div className="s-dict-def">{displayDef}</div>
+          {needsTruncate && (
+            <Button type="link" size="small" onClick={() => setExpanded(!expanded)} style={{ padding: 0, fontSize: 12 }}>
+              {expanded ? "收起" : "展开全文"}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -164,6 +196,8 @@ export default function SearchPage() {
     setSearchHistory(history);
   };
 
+  const dictLang = searchParams.get("dict_lang") || "";
+  const [dictPage, setDictPage] = useState(1);
   const [dynasty] = useState<string>();
   const [category] = useState<string>();
   const [regionFilter, setRegionFilter] = useState<Set<string>>(new Set());
@@ -195,6 +229,12 @@ export default function SearchPage() {
     queryKey: ["federatedSearch", query, page, dynasty, category, selectedSources],
     queryFn: () => federatedSearch({ q: query, page, size: 20, dynasty, category, sources: selectedSources || undefined }),
     enabled: query.length > 0 && tab === "federated",
+  });
+
+  const { data: dictData, isLoading: dictLoading } = useQuery({
+    queryKey: ["searchDict", query, dictPage, dictLang],
+    queryFn: () => searchDictionary({ q: query, page: dictPage, size: 20, lang: dictLang || undefined }),
+    enabled: query.length > 0 && tab === "dictionary",
   });
 
   const { data: sources } = useQuery({ queryKey: ["sources"], queryFn: getSources });
@@ -276,8 +316,8 @@ export default function SearchPage() {
     setInstitutionFilter(next);
   };
 
-  const loading = tab === "catalog" ? isLoading : tab === "content" ? contentLoading : fedLoading;
-  const localTotal = tab === "catalog" ? (data?.total || 0) : tab === "content" ? (contentData?.total || 0) : (fedData?.local_total || 0);
+  const loading = tab === "catalog" ? isLoading : tab === "content" ? contentLoading : tab === "dictionary" ? dictLoading : fedLoading;
+  const localTotal = tab === "catalog" ? (data?.total || 0) : tab === "content" ? (contentData?.total || 0) : tab === "dictionary" ? (dictData?.total || 0) : (fedData?.local_total || 0);
   const extTotal = query.length > 0 ? filteredExtSources.length : 0;
 
   const sortedRegions = useMemo(() => {
@@ -337,6 +377,7 @@ export default function SearchPage() {
             { key: "catalog", label: "经典检索" },
             { key: "federated", label: <><CloudOutlined /> 联合检索</> },
             { key: "content", label: "全文检索" },
+            { key: "dictionary", label: <><BookOutlined /> 辞典检索</> },
           ]}
           size="small"
         />
@@ -345,6 +386,8 @@ export default function SearchPage() {
             ? "按经名、译者、编号检索经典目录"
             : tab === "content"
             ? "在经文正文中检索关键词"
+            : tab === "dictionary"
+            ? "在 237,593 条多语种辞典词条中检索词头"
             : "同时搜索本地数据库和典津跨平台古籍资源"}
         </div>
       </div>
@@ -365,8 +408,8 @@ export default function SearchPage() {
         </div>
       ) : (
         <div className="s-layout">
-          {/* 左侧筛选 */}
-          <aside className="s-sidebar">
+          {/* 左侧筛选（辞典 Tab 不显示） */}
+          {tab !== "dictionary" && <aside className="s-sidebar">
             <div className="s-filter-group">
               <div className="s-filter-title">🌐 国家/地区</div>
               <div className="s-filter-scroll">
@@ -398,7 +441,7 @@ export default function SearchPage() {
                 ))}
               </div>
             </div>
-          </aside>
+          </aside>}
 
           {/* 主内容 */}
           <main className="s-main">
@@ -406,6 +449,8 @@ export default function SearchPage() {
               <span className="s-result-count">
                 {tab === "federated"
                   ? <>联合找到 <strong>{(fedData?.combined_total || 0).toLocaleString()}</strong> 条结果（本地 {localTotal.toLocaleString()} + 典津 {(fedData?.dianjin_total || 0).toLocaleString()}）</>
+                  : tab === "dictionary"
+                  ? <>辞典找到 <strong>{localTotal.toLocaleString()}</strong> 条词条</>
                   : <>本地找到 <strong>{localTotal.toLocaleString()}</strong> 条结果</>
                 }
               </span>
@@ -419,6 +464,20 @@ export default function SearchPage() {
                     { value: "relevance", label: "相关度" },
                     { value: "title", label: "按经名" },
                     { value: "dynasty", label: "按朝代" },
+                  ]}
+                />
+              )}
+              {tab === "dictionary" && (
+                <Select
+                  size="small"
+                  value={dictLang || "all"}
+                  onChange={(v) => { setDictPage(1); updateUrl({ dict_lang: v === "all" ? "" : v }); }}
+                  style={{ width: 120 }}
+                  options={[
+                    { value: "all", label: "全部语种" },
+                    { value: "zh", label: "中文" },
+                    { value: "pi", label: "巴利文" },
+                    { value: "sa", label: "梵文" },
                   ]}
                 />
               )}
@@ -495,8 +554,21 @@ export default function SearchPage() {
               </>
             )}
 
+            {/* 辞典结果 */}
+            {!loading && tab === "dictionary" && dictData && dictData.results.map((hit, i) => (
+              <DictCard key={hit.id} hit={hit} rank={i + 1 + (dictPage - 1) * 20} />
+            ))}
+
+            {/* 辞典分页 */}
+            {!loading && tab === "dictionary" && (dictData?.total || 0) > 20 && (
+              <div style={{ textAlign: "center", margin: "16px 0" }}>
+                <Pagination current={dictPage} total={dictData?.total || 0} pageSize={20}
+                  showSizeChanger={false} onChange={(p) => setDictPage(p)} />
+              </div>
+            )}
+
             {/* 本地分页 */}
-            {!loading && localTotal > 20 && (
+            {!loading && tab !== "dictionary" && localTotal > 20 && (
               <div style={{ textAlign: "center", margin: "16px 0" }}>
                 <Pagination current={page} total={localTotal} pageSize={20}
                   showSizeChanger={false} onChange={(p) => setPage(p)} />
@@ -504,7 +576,7 @@ export default function SearchPage() {
             )}
 
             {/* 外部数据源结果 */}
-            {!loading && query.length > 0 && filteredExtSources.length > 0 && (
+            {!loading && tab !== "dictionary" && query.length > 0 && filteredExtSources.length > 0 && (
               <>
                 <div className="s-ext-divider">
                   以下 {extTotal} 个外部数据源可继续搜索「{query}」
