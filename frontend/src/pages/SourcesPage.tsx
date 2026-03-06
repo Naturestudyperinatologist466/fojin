@@ -11,6 +11,7 @@ import { getSources, type DataSource } from "../api/client";
 import {
   buildSearchUrlWithFallback,
   getLangName,
+  normalizeLangCode,
 } from "../utils/sourceUrls";
 import "../styles/sources.css";
 
@@ -70,7 +71,7 @@ export default function SourcesPage() {
     });
   }, [sources]);
 
-  const langOrder = ["lzh", "zh", "sa", "pi", "bo", "en", "ja", "ko"];
+  const langOrder = ["zh", "lzh", "sa", "pi", "bo", "en", "ja", "ko"];
   const languages = useMemo(() => {
     if (!sources) return [];
     // 按中文名去重（如 xto/txb 都映射为"吐火罗语"，只保留一个代表代码）
@@ -78,7 +79,7 @@ export default function SourcesPage() {
     const allCodes = new Set<string>();
     sources.forEach((s) => {
       if (s.languages) s.languages.split(",").forEach((l) => {
-        const code = l.trim();
+        const code = normalizeLangCode(l.trim());
         allCodes.add(code);
         const name = getLangName(code);
         if (!nameToCode.has(name)) nameToCode.set(name, code);

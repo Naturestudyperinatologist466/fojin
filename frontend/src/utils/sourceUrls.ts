@@ -117,8 +117,8 @@ export const LANG_NAMES: Record<string, string> = {
   pgd: "犍陀罗语",
   kho: "和阗语",
   sog: "粟特语",
-  xto: "吐火罗语A",
-  txb: "吐火罗语B",
+  xto: "吐火罗语",
+  txb: "吐火罗语",
   oui: "古维吾尔语",
   txg: "西夏文",
   cmg: "蒙文",
@@ -141,8 +141,28 @@ export const LANG_NAMES: Record<string, string> = {
   ne: "尼泊尔文",
   hi: "印地文",
   jv: "爪哇文",
+  es: "西班牙文",
 };
 
 export function getLangName(code: string): string {
   return LANG_NAMES[code] || code;
+}
+
+/** 中文名称 → ISO 代码反向映射（处理数据库中未规范化的语言名） */
+const NAME_TO_CODE: Record<string, string> = Object.fromEntries(
+  Object.entries(LANG_NAMES).map(([k, v]) => [v, k]),
+);
+// 额外别名
+NAME_TO_CODE["日语"] = "ja";
+NAME_TO_CODE["韩语"] = "ko";
+NAME_TO_CODE["英语"] = "en";
+NAME_TO_CODE["德语"] = "de";
+NAME_TO_CODE["法语"] = "fr";
+NAME_TO_CODE["荷兰语"] = "nl";
+NAME_TO_CODE["西班牙语"] = "es";
+NAME_TO_CODE["繁体中文"] = "zh";
+
+/** 将可能的中文语言名规范化为 ISO 代码 */
+export function normalizeLangCode(raw: string): string {
+  return NAME_TO_CODE[raw] || raw;
 }
