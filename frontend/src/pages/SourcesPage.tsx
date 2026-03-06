@@ -48,7 +48,7 @@ export default function SourcesPage() {
   const [langFilter, setLangFilter] = useState("all");
   const [catFilter, setCatFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("name");
+  const [sortBy, setSortBy] = useState("default");
 
   const { data: sources, isLoading } = useQuery({
     queryKey: ["sources"],
@@ -132,9 +132,10 @@ export default function SourcesPage() {
       result.sort((a, b) => (a.region || "").localeCompare(b.region || "", "zh"));
     } else if (sortBy === "count") {
       result.sort((a, b) => (b.distributions?.length || 0) - (a.distributions?.length || 0));
-    } else {
+    } else if (sortBy === "name") {
       result.sort((a, b) => a.name_zh.localeCompare(b.name_zh, "zh"));
     }
+    // sortBy === "default": keep backend sort_order
     return result;
   }, [sources, search, regionFilter, langFilter, catFilter, sortBy]);
 
@@ -251,6 +252,7 @@ export default function SourcesPage() {
           onChange={setSortBy}
           style={{ width: 120 }}
           options={[
+            { value: "default", label: "默认排序" },
             { value: "name", label: "按名称" },
             { value: "region", label: "按地区" },
             { value: "count", label: "按收录数" },
