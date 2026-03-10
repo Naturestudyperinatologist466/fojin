@@ -4,7 +4,7 @@
 
 ### The World's Encyclopedic Buddhist Digital Text Platform
 
-**409 sources. 29 languages. 27 countries. One search.**
+**483 sources. 30 languages. 30 countries. One search.**
 
 Aggregating the world's Buddhist digital heritage — from the Chinese Tripitaka to Sanskrit manuscripts, Pali suttas to Tibetan texts — with full-text reading, AI-powered Q&A, knowledge graph, and multi-language parallel reading.
 
@@ -15,8 +15,7 @@ Aggregating the world's Buddhist digital heritage — from the Chinese Tripitaka
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xr843/fojin?style=social)](https://github.com/xr843/fojin)
 
-<!-- Screenshots: place your screenshots in docs/screenshots/ and uncomment below -->
-<!-- ![FoJin Screenshot](./docs/screenshots/hero.png) -->
+![FoJin — Global Buddhist Digital Text Platform](./docs/screenshots/hero.png)
 
 </div>
 
@@ -26,13 +25,13 @@ Aggregating the world's Buddhist digital heritage — from the Chinese Tripitaka
 
 Buddhist texts are scattered across hundreds of databases worldwide — CBETA, SuttaCentral, BDRC, SAT, 84000, GRETIL, and many more. Each has different interfaces, languages, and data formats. Researchers spend more time *finding* texts than *reading* them.
 
-**FoJin solves this.** It aggregates 409+ sources into a single, searchable platform with features no other tool provides:
+**FoJin solves this.** It aggregates 483+ sources into a single, searchable platform with features no other tool provides:
 
 | What you need | How FoJin helps |
 |---|---|
 | Find a sutra across databases | **Federated search** across local index + 728K records from DianJin |
 | Read the full text online | **4,488 fascicles** available for online reading |
-| Compare translations | **Parallel reading** in 29 languages side by side |
+| Compare translations | **Parallel reading** in 30 languages side by side |
 | Look up Buddhist terms | **6 dictionaries**, 237K entries (Chinese/Sanskrit/Pali/English) |
 | Explore relationships | **Knowledge graph** with 9,600+ entities and 3,800+ relations |
 | View original manuscripts | **IIIF manuscript viewer** connected to BDRC and more |
@@ -56,6 +55,8 @@ Then visit: **http://localhost:3000**
 ### Multi-Dimensional Search
 
 Search across Buddhist canons by title, translator, catalog number, or full-text keyword. Federated search combines local Elasticsearch results with 728,000 records from the DianJin platform (Tsinghua/CNKI).
+
+<p align="center"><img src="./docs/screenshots/search.png" alt="Search results for Avatamsaka Sutra" width="800"></p>
 
 ### Full-Text Reading
 
@@ -83,11 +84,15 @@ Compare translations side by side — Classical Chinese, Sanskrit, Pali, Tibetan
 
 Ask questions in natural language. XiaoJin answers based on canonical Buddhist texts (38 core sutras, ~11M characters) using RAG (Retrieval-Augmented Generation). Every answer includes citations to the source text.
 
+<p align="center"><img src="./docs/screenshots/ai-chat-answer.png" alt="AI Q&A answering about Xuanzang's disciples" width="800"></p>
+
 ### Manuscript Viewer
 
 Browse digitized manuscripts and rare editions from BDRC and other institutions via IIIF protocol.
 
 ## Data Sources
+
+<p align="center"><img src="./docs/screenshots/sources.png" alt="483 data sources from 30 countries" width="800"></p>
 
 FoJin aggregates data from major Buddhist digital projects worldwide:
 
