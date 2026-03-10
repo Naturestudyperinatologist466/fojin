@@ -10,10 +10,13 @@ Aggregating the world's Buddhist digital heritage — from the Chinese Tripitaka
 
 [Live Demo](https://fojin.app) &nbsp;&middot;&nbsp; [中文文档](./docs/README_zh.md) &nbsp;&middot;&nbsp; [Report Bug](https://github.com/xr843/fojin/issues)
 
-<!-- TODO: Uncomment after first push
 [![CI](https://github.com/xr843/fojin/actions/workflows/ci.yml/badge.svg)](https://github.com/xr843/fojin/actions/workflows/ci.yml)
+[![Security Scan](https://github.com/xr843/fojin/actions/workflows/security.yml/badge.svg)](https://github.com/xr843/fojin/actions/workflows/security.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
--->
+[![GitHub stars](https://img.shields.io/github/stars/xr843/fojin?style=social)](https://github.com/xr843/fojin)
+
+<!-- Screenshots: place your screenshots in docs/screenshots/ and uncomment below -->
+<!-- ![FoJin Screenshot](./docs/screenshots/hero.png) -->
 
 </div>
 
@@ -210,6 +213,8 @@ FoJin is built on the generous work of the global Buddhist digital humanities co
 <div align="center">
 
 **If FoJin is useful for your research, please consider giving it a star!**
+
+[Discussions](https://github.com/xr843/fojin/discussions) &nbsp;&middot;&nbsp; [Issues](https://github.com/xr843/fojin/issues) &nbsp;&middot;&nbsp; [Contributing](CONTRIBUTING.md)
 
 Made with care for the Buddhist studies community.
 
