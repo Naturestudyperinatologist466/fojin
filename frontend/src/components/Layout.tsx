@@ -12,6 +12,7 @@ import {
   MenuOutlined,
   SettingOutlined,
   RobotOutlined,
+  GithubOutlined,
 } from "@ant-design/icons";
 import { useAuthStore } from "../stores/authStore";
 import { getPendingSuggestionCount } from "../api/client";
@@ -234,6 +235,15 @@ export default function Layout() {
         }}
       >
         佛津 FoJin &copy; 2026 — 全球佛教古籍数字资源聚合平台
+        <span style={{ margin: "0 8px", opacity: 0.4 }}>|</span>
+        <a
+          href="https://github.com/xr843/fojin"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "inherit" }}
+        >
+          <GithubOutlined /> GitHub
+        </a>
       </Footer>
       <Drawer
         title="导航"
