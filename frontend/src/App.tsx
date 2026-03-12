@@ -42,9 +42,9 @@ function App() {
             <Route path="/sources" element={<SourcesPage />} />
             <Route path="/collections" element={<CollectionsPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/chat" element={<RouteErrorBoundary><ChatPage /></RouteErrorBoundary>} />
             <Route element={<ProtectedRoute />}>
               <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/chat" element={<RouteErrorBoundary><ChatPage /></RouteErrorBoundary>} />
             </Route>
             <Route element={<ProtectedRoute requiredRole="admin" />}>
               <Route path="/admin/suggestions" element={<AdminSuggestionsPage />} />
