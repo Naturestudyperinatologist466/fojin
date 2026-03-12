@@ -126,20 +126,6 @@ async def send_message(
     if len(message) > 2000:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="消息长度不能超过2000字")
 
-    # Resolve LLM config (BYOK or platform)
-    api_url, api_key, model, is_byok = _resolve_llm_config(user)
-
-    # Check if platform has LLM configured (for non-BYOK users)
-    if not is_byok and not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="平台 AI 服务暂未配置。请在个人中心配置自己的 API Key 使用 AI 问答功能。",
-        )
-
-    # Daily quota check for non-BYOK users
-    if not is_byok and user:
-        await _check_daily_quota(db, user)
-
     # Anonymous users cannot use chat
     if user_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请登录后使用 AI 问答功能")
@@ -153,6 +139,20 @@ async def send_message(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此会话")
     else:
         chat_session = await create_session(db, user_id, title=message[:50])
+
+    # Resolve LLM config (BYOK or platform)
+    api_url, api_key, model, is_byok = _resolve_llm_config(user)
+
+    # Check if platform has LLM configured (for non-BYOK users)
+    if not is_byok and not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="平台 AI 服务暂未配置。请在个人中心配置自己的 API Key 使用 AI 问答功能。",
+        )
+
+    # Daily quota check for non-BYOK users
+    if not is_byok and user:
+        await _check_daily_quota(db, user)
 
     # RAG: generate embedding and search
     sources: list[ChatSource] = []

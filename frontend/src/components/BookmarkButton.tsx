@@ -20,7 +20,7 @@ export default function BookmarkButton({ textId, size }: BookmarkButtonProps) {
   });
 
   const mutation = useMutation({
-    mutationFn: async () => { bookmarked ? await removeBookmark(textId) : await addBookmark(textId); },
+    mutationFn: async () => { if (bookmarked) { await removeBookmark(textId); } else { await addBookmark(textId); } },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookmark", textId] });
       queryClient.invalidateQueries({ queryKey: ["bookmarks"] });
