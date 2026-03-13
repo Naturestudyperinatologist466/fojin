@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import HomePage from "./pages/HomePage";
 const SearchPage = lazy(() => import("./pages/SearchPage"));
 const TextDetailPage = lazy(() => import("./pages/TextDetailPage"));
+const TextReaderPage = lazy(() => import("./pages/TextReaderPage"));
 
 const SourcesPage = lazy(() => import("./pages/SourcesPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -39,6 +40,7 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/texts/:id" element={<TextDetailPage />} />
+            <Route path="/texts/:id/read" element={<TextReaderPage />} />
             <Route path="/sources" element={<SourcesPage />} />
             <Route path="/collections" element={<CollectionsPage />} />
             <Route path="/login" element={<LoginPage />} />

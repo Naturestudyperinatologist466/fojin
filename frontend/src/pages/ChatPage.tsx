@@ -10,6 +10,7 @@ import {
   DeleteOutlined,
   PlusOutlined,
   SettingOutlined,
+  MenuOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -29,6 +30,7 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<number | undefined>();
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [sending, setSending] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const { data: sessions, refetch: refetchSessions } = useQuery({
@@ -134,7 +136,43 @@ export default function ChatPage() {
       <Helmet><title>小津 AI 佛典问答 — 佛津 FoJin</title></Helmet>
       <div style={{ display: "flex", height: "calc(100vh - 120px)", maxWidth: 1100, margin: "0 auto", gap: 16 }}>
 
-        {/* Sidebar */}
+        {/* Mobile sidebar drawer */}
+        {sidebarOpen && (
+          <>
+            <div className="chat-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+            <div className="chat-sidebar-drawer">
+              <Button icon={<PlusOutlined />} block onClick={() => { handleNewChat(); setSidebarOpen(false); }}>新对话</Button>
+              <Button icon={<SettingOutlined />} block type="text" size="small"
+                style={{ color: "var(--fj-ink-muted)", fontSize: 12 }}
+                onClick={() => { navigate("/profile?tab=apikey"); setSidebarOpen(false); }}>
+                {keyStatus?.has_api_key ? `已配置 Key (${keyStatus.provider})` : "配置 API Key"}
+              </Button>
+              <div style={{ flex: 1, overflow: "auto", marginTop: 8 }}>
+                {sessions?.map((s) => (
+                  <div key={s.id}
+                    style={{
+                      padding: "8px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13,
+                      color: sessionId === s.id ? "var(--fj-accent)" : "var(--fj-ink-muted)",
+                      background: sessionId === s.id ? "rgba(217,208,193,0.3)" : "transparent",
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                    }}
+                    onClick={() => { loadSession(s.id); setSidebarOpen(false); }}
+                  >
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                      {s.title || "新对话"}
+                    </span>
+                    <DeleteOutlined
+                      style={{ fontSize: 11, color: "var(--fj-ink-muted)", marginLeft: 4 }}
+                      onClick={(e) => { e.stopPropagation(); handleDeleteSession(s.id); }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Sidebar (desktop) */}
         <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}
              className="chat-sidebar">
           <Button icon={<PlusOutlined />} block onClick={handleNewChat}>新对话</Button>
@@ -173,6 +211,16 @@ export default function ChatPage() {
 
         {/* Chat area */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+          {/* Mobile menu toggle */}
+          <Button
+            className="chat-mobile-toggle"
+            type="text"
+            icon={<MenuOutlined />}
+            onClick={() => setSidebarOpen(true)}
+            style={{ alignSelf: "flex-start", marginBottom: 4 }}
+          >
+            会话列表
+          </Button>
           {/* Messages */}
           <div style={{ flex: 1, overflow: "auto", padding: "16px 0" }}>
             {messages.length === 0 && (

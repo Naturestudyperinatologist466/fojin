@@ -99,6 +99,45 @@ em {
   margin: 0.5em 0 0.3em;
 }
 
+/* ========== Chat Sidebar Mobile ========== */
+@media (max-width: 768px) {
+  .chat-sidebar {
+    display: none !important;
+  }
+  .chat-mobile-toggle {
+    display: inline-flex !important;
+  }
+}
+@media (min-width: 769px) {
+  .chat-mobile-toggle {
+    display: none !important;
+  }
+}
+.chat-sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  background: rgba(0, 0, 0, 0.3);
+}
+.chat-sidebar-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 260px;
+  z-index: 1000;
+  background: var(--fj-bg);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
 /* ========== Reduced Motion ========== */
 @media (prefers-reduced-motion: reduce) {
   *,
