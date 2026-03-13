@@ -68,7 +68,7 @@ const SOURCE_LABELS: Record<string, string> = {
   "sat-utokyo": "SAT 大正藏",
   shidianguji: "识典古籍",
   dianjin: "典津",
-  "kanseki-repo": "漢籍リポジトリ",
+  "kanseki-repo": "汉籍全文资料库",
   "lotsawa-house": "Lotsawa House",
   buddhanexus: "Dharmamitra (原BuddhaNexus)",
   dharmanexus: "DharmaNexus",

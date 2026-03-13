@@ -16,6 +16,7 @@ import {
   ReadOutlined,
   FileImageOutlined,
   HomeOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
 import { getTextDetail, getTextManifests, getTextIdentifiers } from "../api/client";
 import { buildCbetaReadUrl } from "../utils/sourceUrls";
@@ -163,9 +164,18 @@ export default function TextDetailPage() {
         </Card>
 
         <Space>
-          {cbetaUrl && (
+          {text.has_content && (
             <Button
               type="primary"
+              size="large"
+              icon={<BookOutlined />}
+              onClick={() => navigate(`/texts/${text.id}/read`)}
+            >
+              在线阅读
+            </Button>
+          )}
+          {cbetaUrl && (
+            <Button
               size="large"
               icon={<ReadOutlined />}
               href={cbetaUrl}

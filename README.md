@@ -4,7 +4,7 @@
 
 ### The World's Encyclopedic Buddhist Digital Text Platform
 
-**483 sources. 30 languages. 30 countries. One search.**
+**440+ sources. 30 languages. 30 countries. One search.**
 
 Aggregating the world's Buddhist digital heritage — from the Chinese Tripitaka to Sanskrit manuscripts, Pali suttas to Tibetan texts — with full-text reading, AI-powered Q&A, knowledge graph, and multi-language parallel reading.
 
@@ -25,11 +25,11 @@ Aggregating the world's Buddhist digital heritage — from the Chinese Tripitaka
 
 Buddhist texts are scattered across hundreds of databases worldwide — CBETA, SuttaCentral, BDRC, SAT, 84000, GRETIL, and many more. Each has different interfaces, languages, and data formats. Researchers spend more time *finding* texts than *reading* them.
 
-**FoJin solves this.** It aggregates 483+ sources into a single, searchable platform with features no other tool provides:
+**FoJin solves this.** It aggregates 440+ sources into a single, searchable platform with features no other tool provides:
 
 | What you need | How FoJin helps |
 |---|---|
-| Find a sutra across databases | **Multi-dimensional search** across local index with 483+ sources |
+| Find a sutra across databases | **Multi-dimensional search** across local index with 440+ sources |
 | Read the full text online | **4,488 fascicles** available for online reading |
 | Compare translations | **Parallel reading** in 30 languages side by side |
 | Look up Buddhist terms | **6 dictionaries**, 237K entries (Chinese/Sanskrit/Pali/English) |

@@ -50,7 +50,7 @@ const TYPE_LABEL_MAP: Record<string, string> = {
 };
 
 export default function KnowledgeGraphPage() {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState("玄奘");
   const [entityType, setEntityType] = useState("");
   const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
   const [graphDepth, setGraphDepth] = useState(2);

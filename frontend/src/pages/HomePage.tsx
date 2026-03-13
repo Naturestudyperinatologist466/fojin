@@ -7,6 +7,9 @@ import {
   SearchOutlined,
   UpOutlined,
   DownOutlined,
+  ApartmentOutlined,
+  RobotOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
 import SourceSelector from "../components/SourceSelector";
 import { getStats, getSources, getFilters } from "../api/client";
@@ -133,6 +136,29 @@ export default function HomePage() {
             <div className="home-stat-lbl">关联语种</div>
           </div>
         </div>
+        <div className="home-features">
+          <div className="home-feature-card" onClick={() => navigate("/sources")}>
+            <DatabaseOutlined className="home-feature-icon" />
+            <div className="home-feature-title">数据来源</div>
+            <div className="home-feature-desc">汇聚 CBETA、SuttaCentral 等全球数字佛典资源</div>
+          </div>
+          <div className="home-feature-card" onClick={() => navigate("/kg")}>
+            <ApartmentOutlined className="home-feature-icon" />
+            <div className="home-feature-title">知识图谱</div>
+            <div className="home-feature-desc">人物、典籍、宗派关系可视化探索</div>
+          </div>
+          <div className="home-feature-card" onClick={() => navigate("/chat")}>
+            <RobotOutlined className="home-feature-icon" />
+            <div className="home-feature-title">AI 问答</div>
+            <div className="home-feature-desc">基于经文原文的智能佛学问答</div>
+          </div>
+          <div className="home-feature-card" onClick={() => navigate("/collections")}>
+            <BookOutlined className="home-feature-icon" />
+            <div className="home-feature-title">经典专题</div>
+            <div className="home-feature-desc">按主题浏览精选佛教典籍</div>
+          </div>
+        </div>
+
         <div className="home-trust">
           数据来源均为全球学术机构公开资源，定期同步，自动去重 ·{" "}
           <span className="home-trust-link" onClick={() => navigate("/sources")}>了解数据来源 →</span>
