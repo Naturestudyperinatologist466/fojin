@@ -5,11 +5,15 @@ from fastapi import status
 from app.core.exceptions import (
     AuthError,
     DianjinServiceError,
+    DictionaryEntryNotFoundError,
     FoJinError,
     InvalidCredentialsError,
+    KGEntityNotFoundError,
+    ManifestNotFoundError,
     NotFoundError,
     SearchServiceError,
     SourceNotFoundError,
+    SuggestionNotFoundError,
     TextNotFoundError,
     TokenExpiredError,
     ValidationError,
@@ -41,11 +45,33 @@ class TestExceptionHierarchy:
         err = SourceNotFoundError("cbeta")
         assert "cbeta" in err.message
 
+    def test_dictionary_entry_not_found(self):
+        err = DictionaryEntryNotFoundError(entry_id=99)
+        assert "99" in err.message
+        assert err.entry_id == 99
+
+    def test_kg_entity_not_found(self):
+        err = KGEntityNotFoundError(entity_id=7)
+        assert "7" in err.message
+        assert err.entity_id == 7
+
+    def test_manifest_not_found(self):
+        err = ManifestNotFoundError()
+        assert "Manifest" in err.message
+
+    def test_suggestion_not_found(self):
+        err = SuggestionNotFoundError()
+        assert err.message == "推荐记录不存在"
+
     def test_inheritance(self):
         assert isinstance(TextNotFoundError(text_id=1), NotFoundError)
         assert isinstance(TextNotFoundError(text_id=1), FoJinError)
         assert isinstance(SearchServiceError(), FoJinError)
         assert isinstance(InvalidCredentialsError(), AuthError)
+        assert isinstance(DictionaryEntryNotFoundError(entry_id=1), NotFoundError)
+        assert isinstance(KGEntityNotFoundError(entity_id=1), NotFoundError)
+        assert isinstance(ManifestNotFoundError(), NotFoundError)
+        assert isinstance(SuggestionNotFoundError(), NotFoundError)
 
 
 class TestErrorToHTTP:
@@ -76,6 +102,22 @@ class TestErrorToHTTP:
     def test_base_error_maps_to_500(self):
         http = fojin_error_to_http(FoJinError("unexpected"))
         assert http.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
+    def test_dictionary_entry_maps_to_404(self):
+        http = fojin_error_to_http(DictionaryEntryNotFoundError(entry_id=1))
+        assert http.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_kg_entity_maps_to_404(self):
+        http = fojin_error_to_http(KGEntityNotFoundError(entity_id=1))
+        assert http.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_manifest_maps_to_404(self):
+        http = fojin_error_to_http(ManifestNotFoundError())
+        assert http.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_suggestion_maps_to_404(self):
+        http = fojin_error_to_http(SuggestionNotFoundError())
+        assert http.status_code == status.HTTP_404_NOT_FOUND
 
     def test_detail_preserved(self):
         http = fojin_error_to_http(TextNotFoundError(cbeta_id="T0001"))

@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import SourceNotFoundError
 from app.database import get_db
 from app.models.source import DataSource, TextIdentifier
 from app.models.text import BuddhistText, TextContent
@@ -137,7 +138,7 @@ async def list_primary_ingest_distributions(db: AsyncSession = Depends(get_db)):
 async def list_source_distributions(code: str, db: AsyncSession = Depends(get_db)):
     source = await get_source_by_code(db, code)
     if not source:
-        raise HTTPException(status_code=404, detail="数据源未找到")
+        raise SourceNotFoundError(code)
     return await get_source_distributions(db, code)
 
 
@@ -145,5 +146,5 @@ async def list_source_distributions(code: str, db: AsyncSession = Depends(get_db
 async def get_source(code: str, db: AsyncSession = Depends(get_db)):
     source = await get_source_by_code(db, code)
     if not source:
-        raise HTTPException(status_code=404, detail="数据源未找到")
+        raise SourceNotFoundError(code)
     return source

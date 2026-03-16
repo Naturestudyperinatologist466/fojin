@@ -47,6 +47,34 @@ class SourceNotFoundError(NotFoundError):
         self.code = code
 
 
+class DictionaryEntryNotFoundError(NotFoundError):
+    """A dictionary entry was not found."""
+
+    def __init__(self, *, entry_id: int):
+        super().__init__(f"词条未找到: {entry_id}")
+        self.entry_id = entry_id
+
+
+class KGEntityNotFoundError(NotFoundError):
+    """A knowledge-graph entity was not found."""
+
+    def __init__(self, *, entity_id: int):
+        super().__init__(f"实体未找到: {entity_id}")
+        self.entity_id = entity_id
+
+
+class ManifestNotFoundError(NotFoundError):
+    """An IIIF manifest was not found."""
+
+    message = "Manifest 未找到"
+
+
+class SuggestionNotFoundError(NotFoundError):
+    """A source suggestion was not found."""
+
+    message = "推荐记录不存在"
+
+
 # ---- Service errors ----
 
 class ServiceError(FoJinError):
@@ -107,6 +135,10 @@ STATUS_MAP: dict[type, int] = {
     NotFoundError: status.HTTP_404_NOT_FOUND,
     TextNotFoundError: status.HTTP_404_NOT_FOUND,
     SourceNotFoundError: status.HTTP_404_NOT_FOUND,
+    DictionaryEntryNotFoundError: status.HTTP_404_NOT_FOUND,
+    KGEntityNotFoundError: status.HTTP_404_NOT_FOUND,
+    ManifestNotFoundError: status.HTTP_404_NOT_FOUND,
+    SuggestionNotFoundError: status.HTTP_404_NOT_FOUND,
     AuthError: status.HTTP_401_UNAUTHORIZED,
     InvalidCredentialsError: status.HTTP_401_UNAUTHORIZED,
     TokenExpiredError: status.HTTP_401_UNAUTHORIZED,

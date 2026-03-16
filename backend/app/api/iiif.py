@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import ManifestNotFoundError
 from app.database import get_db
 from app.schemas.iiif import IIIFManifestResponse
 from app.services.iiif import get_manifest_by_id, get_manifest_json, get_text_manifests
@@ -18,7 +19,7 @@ async def list_text_manifests(text_id: int, db: AsyncSession = Depends(get_db)):
 async def get_manifest(manifest_id: int, db: AsyncSession = Depends(get_db)):
     manifest = await get_manifest_by_id(db, manifest_id)
     if not manifest:
-        raise HTTPException(status_code=404, detail="Manifest 未找到")
+        raise ManifestNotFoundError()
     return manifest
 
 
@@ -28,5 +29,5 @@ async def proxy_manifest(manifest_id: int, request: Request, db: AsyncSession = 
     redis_client = getattr(request.app.state, "redis", None)
     data = await get_manifest_json(db, manifest_id, redis_client)
     if not data:
-        raise HTTPException(status_code=404, detail="Manifest 数据获取失败")
+        raise ManifestNotFoundError("Manifest 数据获取失败")
     return data

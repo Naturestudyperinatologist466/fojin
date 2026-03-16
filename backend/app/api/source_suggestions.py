@@ -1,10 +1,11 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import SuggestionNotFoundError
 from app.core.role_guard import require_role
 from app.database import get_db
 from app.models.source import SourceSuggestion
@@ -104,7 +105,7 @@ async def delete_source_suggestion(
     )
     suggestion = result.scalar_one_or_none()
     if not suggestion:
-        raise HTTPException(status_code=404, detail="推荐记录不存在")
+        raise SuggestionNotFoundError()
     await db.delete(suggestion)
     await db.commit()
 
@@ -121,7 +122,7 @@ async def update_suggestion_status(
     )
     suggestion = result.scalar_one_or_none()
     if not suggestion:
-        raise HTTPException(status_code=404, detail="推荐记录不存在")
+        raise SuggestionNotFoundError()
     suggestion.status = payload.status
     await db.commit()
     await db.refresh(suggestion)

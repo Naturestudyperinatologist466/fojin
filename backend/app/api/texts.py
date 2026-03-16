@@ -1,9 +1,10 @@
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_optional_user
+from app.core.exceptions import TextNotFoundError
 from app.database import get_db
 from app.models.user import ReadingHistory, User
 from app.schemas.text import JuanContentResponse, JuanListResponse, TextResponseBase
@@ -18,7 +19,7 @@ async def get_text(text_id: int, db: AsyncSession = Depends(get_db)):
     """获取经典详情。"""
     text = await get_text_by_id(db, text_id)
     if not text:
-        raise HTTPException(status_code=404, detail="经典未找到")
+        raise TextNotFoundError(text_id=text_id)
     return text
 
 
@@ -27,7 +28,7 @@ async def list_juans(text_id: int, db: AsyncSession = Depends(get_db)):
     """获取经典的卷列表。"""
     result = await get_juan_list(db, text_id)
     if result is None:
-        raise HTTPException(status_code=404, detail="经典未找到")
+        raise TextNotFoundError(text_id=text_id)
     return result
 
 
@@ -41,7 +42,7 @@ async def read_juan(
     """获取经典某一卷的内容。登录用户自动记录阅读历史。"""
     result = await get_juan_content(db, text_id, juan_num)
     if result is None:
-        raise HTTPException(status_code=404, detail="卷内容未找到")
+        raise TextNotFoundError(text_id=text_id)
 
     # Record reading history for logged-in users
     if user is not None:
