@@ -13,8 +13,11 @@ import {
   SettingOutlined,
   RobotOutlined,
   GithubOutlined,
+  SunOutlined,
+  MoonOutlined,
 } from "@ant-design/icons";
 import { useAuthStore } from "../stores/authStore";
+import { useThemeStore } from "../stores/themeStore";
 import { getPendingSuggestionCount } from "../api/client";
 
 const { Header, Content, Footer } = AntLayout;
@@ -23,6 +26,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
+  const { mode, toggleMode } = useThemeStore();
   const isHome = location.pathname === "/";
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -165,6 +169,13 @@ export default function Layout() {
           />
         </Space>
         <Space>
+          <Button
+            type="text"
+            icon={mode === "dark" ? <SunOutlined /> : <MoonOutlined />}
+            onClick={toggleMode}
+            style={{ color: inkMuted, fontSize: 16 }}
+            aria-label={mode === "dark" ? "切换到浅色模式" : "切换到深色模式"}
+          />
           {user ? (
             <Dropdown
               menu={{
