@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Pagination, Spin, Empty, Checkbox, Input, Tag, Button, Tabs, Result, Select, Typography,
+  Pagination, Empty, Checkbox, Input, Tag, Button, Tabs, Result, Select, Typography, Skeleton,
 } from "antd";
 import {
   SearchOutlined, BookOutlined, VerticalAlignTopOutlined,
@@ -337,7 +337,36 @@ export default function SearchPage() {
               </div>
             </div>
 
-            {loading && <div style={{ textAlign: "center", padding: 60 }}><Spin size="large" /></div>}
+            {loading && Array.from({ length: 5 }).map((_, i) => (
+              <div className="s-card" key={`skel-${i}`}>
+                <div className="s-card-rank">
+                  <Skeleton.Button active size="small" style={{ width: 28, height: 14 }} />
+                </div>
+                <div className="s-card-body">
+                  <Skeleton.Input active size="small" style={{ width: 220, height: 22, marginBottom: 8 }} />
+                  <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                    <Skeleton.Button active size="small" style={{ width: 60, height: 22, borderRadius: 4 }} />
+                    <Skeleton.Button active size="small" style={{ width: 60, height: 22, borderRadius: 4 }} />
+                  </div>
+                  {tab === "content" ? (
+                    <div style={{ padding: "8px 12px", background: "var(--fj-sand-light, #faf7f2)", borderLeft: "3px solid #d4a574", borderRadius: 4, marginTop: 8 }}>
+                      <Skeleton active paragraph={{ rows: 2 }} title={false} />
+                    </div>
+                  ) : tab === "dictionary" ? (
+                    <Skeleton active paragraph={{ rows: 2 }} title={false} />
+                  ) : (
+                    <>
+                      <Skeleton.Input active size="small" style={{ width: 180, height: 16, marginBottom: 4 }} />
+                      <Skeleton.Input active size="small" style={{ width: 120, height: 16, marginBottom: 12 }} />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Skeleton.Button active size="small" style={{ width: 90, height: 28 }} />
+                        <Skeleton.Button active size="small" style={{ width: 80, height: 28 }} />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
 
             {!loading && isError && tab === "catalog" && (
               <Result
