@@ -16,6 +16,12 @@ async def dify_dataset_search(query: str, top_k: int = 3) -> list[dict]:
     if not settings.dify_api_url or not settings.dify_dataset_api_key:
         return []
 
+    # Skip if Dify URL points to an unreachable internal network
+    import urllib.parse
+    host = urllib.parse.urlparse(settings.dify_api_url).hostname or ""
+    if host.startswith("192.168.") or host.startswith("10.") or host.startswith("172."):
+        return []
+
     dataset_ids = [
         did.strip()
         for did in settings.dify_dataset_ids.split(",")

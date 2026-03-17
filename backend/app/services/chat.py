@@ -161,12 +161,17 @@ async def _prepare_chat(
         await _check_daily_quota(db, user)
 
     # RAG: hybrid retrieval — pgvector + Dify datasets in parallel
+    import time as _time
+    _rag_t0 = _time.monotonic()
     sources: list[ChatSource] = []
     context_text = ""
     try:
         dify_task = asyncio.ensure_future(dify_dataset_search(message, top_k=3))
         query_embedding = await generate_embedding(message)
+        _rag_t1 = _time.monotonic()
+        logger.debug("TIMING: Embedding took %.2fs", _rag_t1 - _rag_t0)
         search_results = await similarity_search(db, query_embedding, limit=5)
+        logger.debug("TIMING: pgvector search took %.2fs", _time.monotonic() - _rag_t1)
 
         sources = [ChatSource(**r) for r in search_results]
         context_parts = []
@@ -214,9 +219,13 @@ async def send_message(
     session_id: int | None = None,
     user: User | None = None,
 ) -> ChatResponse:
+    import time as _time
+    _t0 = _time.monotonic()
     chat_session, api_url, api_key, model, is_byok, sources, llm_messages = await _prepare_chat(
         db, user_id, message, session_id, user,
     )
+    _t1 = _time.monotonic()
+    logger.debug("TIMING: _prepare_chat took %.2fs", _t1 - _t0)
 
     # Call LLM
     try:
@@ -233,6 +242,8 @@ async def send_message(
             )
             resp.raise_for_status()
             answer = resp.json()["choices"][0]["message"]["content"]
+        _t2 = _time.monotonic()
+        logger.debug("TIMING: LLM call took %.2fs", _t2 - _t1)
     except httpx.TimeoutException:
         logger.warning("LLM call timed out")
         answer = "抱歉，AI 服务响应超时，请稍后重试。"
