@@ -1,10 +1,11 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
-import { ConfigProvider, Spin } from "antd";
+import { ConfigProvider, Spin, theme as antTheme } from "antd";
 import Layout from "./components/Layout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { useThemeStore } from "./stores/themeStore";
 import HomePage from "./pages/HomePage";
 const SearchPage = lazy(() => import("./pages/SearchPage"));
 const TextDetailPage = lazy(() => import("./pages/TextDetailPage"));
@@ -31,8 +32,14 @@ function Loading() {
 }
 
 function App() {
+  const mode = useThemeStore((s) => s.mode);
   return (
-    <ConfigProvider>
+    <ConfigProvider
+      theme={{
+        algorithm:
+          mode === "dark" ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
+      }}
+    >
       <ErrorBoundary>
         <Suspense fallback={<Loading />}>
           <Routes>

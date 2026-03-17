@@ -1,43 +1,42 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-type ThemeMode = "auto" | "light" | "dark";
+type ThemeMode = "light" | "dark";
 
 interface ThemeState {
-  theme: ThemeMode;
-  setTheme: (theme: ThemeMode) => void;
+  mode: ThemeMode;
+  toggleMode: () => void;
 }
 
-function applyTheme(theme: ThemeMode) {
-  if (theme === "auto") {
-    delete document.documentElement.dataset.theme;
-  } else {
-    document.documentElement.dataset.theme = theme;
-  }
+const STORAGE_KEY = "fojin-theme";
+
+function applyMode(mode: ThemeMode) {
+  document.documentElement.dataset.theme = mode;
 }
 
 export const useThemeStore = create<ThemeState>()(
   persist(
-    (set) => ({
-      theme: "auto" as ThemeMode,
-      setTheme: (theme: ThemeMode) => {
-        applyTheme(theme);
-        set({ theme });
+    (set, get) => ({
+      mode: "light" as ThemeMode,
+      toggleMode: () => {
+        const next = get().mode === "light" ? "dark" : "light";
+        applyMode(next);
+        set({ mode: next });
       },
     }),
     {
-      name: "fojin-theme",
+      name: STORAGE_KEY,
     },
   ),
 );
 
-// Apply theme on load
-const stored = localStorage.getItem("fojin-theme");
+// Apply theme on initial load (before rehydration completes)
+const stored = localStorage.getItem(STORAGE_KEY);
 if (stored) {
   try {
     const parsed = JSON.parse(stored);
-    if (parsed?.state?.theme) {
-      applyTheme(parsed.state.theme);
+    if (parsed?.state?.mode) {
+      applyMode(parsed.state.mode);
     }
   } catch {
     // ignore
