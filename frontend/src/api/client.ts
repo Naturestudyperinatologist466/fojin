@@ -560,6 +560,8 @@ export interface ChatSource {
   juan_num: number;
   chunk_text: string;
   score: number;
+  title_zh?: string;
+  source_type?: string;
 }
 
 export interface ChatResponse {
@@ -610,6 +612,93 @@ export async function getChatSession(sessionId: number): Promise<{
 
 export async function deleteChatSession(sessionId: number): Promise<void> {
   await api.delete(`/chat/sessions/${sessionId}`);
+}
+
+export interface StreamCallbacks {
+  onToken: (content: string) => void;
+  onSources: (sources: ChatSource[]) => void;
+  onSessionId: (sessionId: number) => void;
+  onError: (message: string) => void;
+  onDone: () => void;
+}
+
+export async function sendChatMessageStream(
+  message: string,
+  sessionId: number | undefined,
+  callbacks: StreamCallbacks,
+): Promise<void> {
+  let token = "";
+  try {
+    const raw = localStorage.getItem("fojin-auth");
+    if (raw) {
+      const { state } = JSON.parse(raw);
+      if (state?.token) token = state.token;
+    }
+  } catch { /* ignore */ }
+
+  const resp = await fetch("/api/chat/stream", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ message, session_id: sessionId }),
+  });
+
+  if (!resp.ok) {
+    let detail = "请求失败";
+    try {
+      const err = await resp.json();
+      detail = err.detail || detail;
+    } catch { /* ignore */ }
+    callbacks.onError(detail);
+    callbacks.onDone();
+    return;
+  }
+
+  const reader = resp.body?.getReader();
+  if (!reader) {
+    callbacks.onError("浏览器不支持流式响应");
+    callbacks.onDone();
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      try {
+        const event = JSON.parse(line.slice(6));
+        switch (event.type) {
+          case "token":
+            callbacks.onToken(event.content);
+            break;
+          case "sources":
+            callbacks.onSources(event.sources);
+            break;
+          case "session_id":
+            callbacks.onSessionId(event.session_id);
+            break;
+          case "error":
+            callbacks.onError(event.message);
+            break;
+          case "done":
+            callbacks.onDone();
+            return;
+        }
+      } catch { /* skip malformed lines */ }
+    }
+  }
+  callbacks.onDone();
 }
 
 // --- BYOK (Bring Your Own Key) ---

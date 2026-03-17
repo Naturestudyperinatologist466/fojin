@@ -115,13 +115,17 @@ async def _check_daily_quota(db: AsyncSession, user: User) -> None:
     await db.flush()
 
 
-async def send_message(
+async def _prepare_chat(
     db: AsyncSession,
     user_id: int | None,
     message: str,
     session_id: int | None = None,
     user: User | None = None,
-) -> ChatResponse:
+) -> tuple[ChatSession, str, str, str, bool, list[ChatSource], list[dict[str, str]]]:
+    """Shared setup for send_message and send_message_stream.
+
+    Returns (chat_session, api_url, api_key, model, is_byok, sources, llm_messages).
+    """
     # Validate message
     if not message or not message.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="消息不能为空")
@@ -160,29 +164,23 @@ async def send_message(
     sources: list[ChatSource] = []
     context_text = ""
     try:
-        # Launch Dify search concurrently with embedding generation
         dify_task = asyncio.ensure_future(dify_dataset_search(message, top_k=3))
         query_embedding = await generate_embedding(message)
         search_results = await similarity_search(db, query_embedding, limit=5)
 
-        # pgvector sources
         sources = [ChatSource(**r) for r in search_results]
         context_parts = []
         for r in search_results:
             label = f"《{r['title_zh']}》第{r['juan_num']}卷" if r.get("title_zh") else f"文本#{r['text_id']} 第{r['juan_num']}卷"
             context_parts.append(f"[出处: {label}]\n{r['chunk_text']}")
 
-        # Dify sources
         try:
             dify_results = await dify_task
             for dr in dify_results:
                 sources.append(ChatSource(
-                    text_id=0,
-                    juan_num=0,
-                    chunk_text=dr["chunk_text"],
-                    score=dr["score"],
-                    title_zh="",
-                    source_type="dify",
+                    text_id=0, juan_num=0,
+                    chunk_text=dr["chunk_text"], score=dr["score"],
+                    title_zh="", source_type="dify",
                 ))
                 context_parts.append(f"[出处: 佛典知识库]\n{dr['chunk_text']}")
         except Exception:
@@ -205,6 +203,20 @@ async def send_message(
         })
     else:
         llm_messages.append({"role": "user", "content": message})
+
+    return chat_session, api_url, api_key, model, is_byok, sources, llm_messages
+
+
+async def send_message(
+    db: AsyncSession,
+    user_id: int | None,
+    message: str,
+    session_id: int | None = None,
+    user: User | None = None,
+) -> ChatResponse:
+    chat_session, api_url, api_key, model, is_byok, sources, llm_messages = await _prepare_chat(
+        db, user_id, message, session_id, user,
+    )
 
     # Call LLM
     try:
@@ -251,6 +263,91 @@ async def send_message(
         message=answer,
         sources=sources,
     )
+
+
+async def send_message_stream(
+    db: AsyncSession,
+    user_id: int | None,
+    message: str,
+    session_id: int | None = None,
+    user: User | None = None,
+):
+    """Async generator yielding SSE events for streaming chat responses."""
+    import json
+
+    chat_session, api_url, api_key, model, is_byok, sources, llm_messages = await _prepare_chat(
+        db, user_id, message, session_id, user,
+    )
+
+    # Emit session_id and sources immediately
+    yield f"data: {json.dumps({'type': 'session_id', 'session_id': chat_session.id}, ensure_ascii=False)}\n\n"
+    if sources:
+        yield f"data: {json.dumps({'type': 'sources', 'sources': [s.model_dump() for s in sources]}, ensure_ascii=False)}\n\n"
+
+    # Stream LLM response
+    full_answer = ""
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream(
+                "POST",
+                f"{api_url}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": model,
+                    "messages": llm_messages,
+                    "temperature": 0.7,
+                    "max_tokens": 2000,
+                    "stream": True,
+                },
+            ) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    payload = line[6:]
+                    if payload.strip() == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(payload)
+                        delta = chunk.get("choices", [{}])[0].get("delta", {})
+                        content = delta.get("content", "")
+                        if content:
+                            full_answer += content
+                            yield f"data: {json.dumps({'type': 'token', 'content': content}, ensure_ascii=False)}\n\n"
+                    except (json.JSONDecodeError, IndexError, KeyError):
+                        continue
+    except httpx.TimeoutException:
+        logger.warning("LLM stream timed out")
+        error_msg = "抱歉，AI 服务响应超时，请稍后重试。"
+        yield f"data: {json.dumps({'type': 'error', 'message': error_msg}, ensure_ascii=False)}\n\n"
+        full_answer = full_answer or error_msg
+    except httpx.HTTPStatusError as exc:
+        logger.warning("LLM stream returned HTTP %s", exc.response.status_code)
+        if is_byok and exc.response.status_code == 401:
+            error_msg = "您的 API Key 无效或已过期，请在个人中心重新配置。"
+        else:
+            error_msg = f"抱歉，AI 服务返回错误（HTTP {exc.response.status_code}），请稍后重试。"
+        yield f"data: {json.dumps({'type': 'error', 'message': error_msg}, ensure_ascii=False)}\n\n"
+        full_answer = full_answer or error_msg
+    except Exception:
+        logger.exception("LLM stream failed")
+        error_msg = "抱歉，AI 服务暂时不可用，请稍后重试。"
+        yield f"data: {json.dumps({'type': 'error', 'message': error_msg}, ensure_ascii=False)}\n\n"
+        full_answer = full_answer or error_msg
+
+    # Save messages
+    user_msg = ChatMessage(session_id=chat_session.id, role="user", content=message)
+    assistant_msg = ChatMessage(
+        session_id=chat_session.id,
+        role="assistant",
+        content=full_answer,
+        sources=[s.model_dump() for s in sources] if sources else None,
+    )
+    db.add(user_msg)
+    db.add(assistant_msg)
+    await db.commit()
+
+    yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 
 async def delete_session(db: AsyncSession, session_id: int, user_id: int) -> None:

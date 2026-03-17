@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_optional_user
@@ -18,6 +19,7 @@ from app.services.chat import (
     get_session_for_user,
     list_sessions,
     send_message,
+    send_message_stream,
 )
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -32,6 +34,21 @@ async def chat(
     """发送消息并获取 AI 回答（支持 BYOK）。"""
     user_id = user.id if user else None
     return await send_message(db, user_id, data.message, data.session_id, user=user)
+
+
+@router.post("/stream")
+async def chat_stream(
+    data: ChatRequest,
+    user: User | None = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """SSE 流式发送消息并获取 AI 回答。"""
+    user_id = user.id if user else None
+    return StreamingResponse(
+        send_message_stream(db, user_id, data.message, data.session_id, user=user),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/sessions", response_model=list[SessionListItem])

@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Input, Button, Space, Spin, message, Alert } from "antd";
+import { Input, Button, Space, message, Alert } from "antd";
 import Markdown from "react-markdown";
 import {
   SendOutlined,
@@ -14,12 +14,13 @@ import {
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import {
-  sendChatMessage,
+  sendChatMessageStream,
   getChatSessions,
   getChatSession,
   deleteChatSession,
   getApiKeyStatus,
   type ChatMessageItem,
+  type ChatSource,
 } from "../api/client";
 import { useAuthStore } from "../stores/authStore";
 
@@ -75,7 +76,9 @@ export default function ChatPage() {
     }
   };
 
-  const handleSend = async () => {
+  const streamingIdRef = useRef<number>(0);
+
+  const handleSend = useCallback(async () => {
     const msg = input.trim();
     if (!msg || sending) return;
 
@@ -86,33 +89,53 @@ export default function ChatPage() {
       sources: null,
       created_at: new Date().toISOString(),
     };
-    setMessages((prev) => [...prev, userMsg]);
+
+    const assistantId = Date.now() + 1;
+    streamingIdRef.current = assistantId;
+    const assistantMsg: ChatMessageItem = {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      sources: null,
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setInput("");
     setSending(true);
     scrollToBottom();
 
-    try {
-      const resp = await sendChatMessage(msg, sessionId);
-      if (!sessionId) {
-        setSessionId(resp.session_id);
-        refetchSessions();
-      }
-      const assistantMsg: ChatMessageItem = {
-        id: Date.now() + 1,
-        role: "assistant",
-        content: resp.message,
-        sources: resp.sources,
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-      scrollToBottom();
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail || "发送失败，请稍后重试";
-      message.error(detail);
-    } finally {
-      setSending(false);
-    }
-  };
+    await sendChatMessageStream(msg, sessionId, {
+      onToken: (content: string) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, content: m.content + content } : m,
+          ),
+        );
+        scrollToBottom();
+      },
+      onSources: (sources: ChatSource[]) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, sources } : m,
+          ),
+        );
+      },
+      onSessionId: (newSessionId: number) => {
+        if (!sessionId) {
+          setSessionId(newSessionId);
+          refetchSessions();
+        }
+      },
+      onError: (errMsg: string) => {
+        message.error(errMsg);
+      },
+      onDone: () => {
+        streamingIdRef.current = 0;
+        setSending(false);
+      },
+    });
+  }, [input, sending, sessionId, refetchSessions]);
 
   if (!user) {
     return (
@@ -264,7 +287,9 @@ export default function ChatPage() {
                   wordBreak: "break-word",
                 }}>
                   {m.role === "assistant" ? (
-                    <div className="chat-markdown"><Markdown>{m.content}</Markdown></div>
+                    <div className="chat-markdown">
+                      <Markdown>{m.content + (streamingIdRef.current === m.id ? " ▌" : "")}</Markdown>
+                    </div>
                   ) : (
                     m.content
                   )}
@@ -278,7 +303,20 @@ export default function ChatPage() {
                     }}>
                       {m.sources.map((s, i) => (
                         <div key={i} style={{ marginBottom: 4 }}>
-                          📖 文本#{s.text_id} 第{s.juan_num}卷
+                          {s.source_type === "dify" ? (
+                            <span>{"📚"} 佛典知识库 ({Math.round(s.score * 100)}%)</span>
+                          ) : (
+                            <a
+                              onClick={() => s.text_id > 0 && navigate(`/texts/${s.text_id}/read?juan=${s.juan_num}`)}
+                              style={{ cursor: s.text_id > 0 ? "pointer" : "default", color: "inherit", textDecoration: s.text_id > 0 ? "underline" : "none" }}
+                            >
+                              {"📖"}{" "}
+                              {s.title_zh
+                                ? `《${s.title_zh}》第${s.juan_num}卷`
+                                : `文本#${s.text_id} 第${s.juan_num}卷`}
+                              {" "}({Math.round(s.score * 100)}%)
+                            </a>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -286,18 +324,7 @@ export default function ChatPage() {
                 </div>
               </div>
             ))}
-            {sending && (
-              <div style={{ display: "flex", gap: 12, padding: "0 16px", marginBottom: 16 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "rgba(217,208,193,0.5)", color: "var(--fj-ink)", fontSize: 14,
-                }}>
-                  <RobotOutlined />
-                </div>
-                <div style={{ padding: "10px 16px" }}><Spin size="small" /> 思考中...</div>
-              </div>
-            )}
+            {/* Streaming cursor is shown inline via ▌ in the message bubble */}
             <div ref={bottomRef} />
           </div>
 
