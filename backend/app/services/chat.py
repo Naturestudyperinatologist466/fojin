@@ -272,19 +272,109 @@ async def send_message_stream(
     session_id: int | None = None,
     user: User | None = None,
 ):
-    """Async generator yielding SSE events for streaming chat responses."""
+    """Async generator yielding SSE events for streaming chat responses.
+
+    Yields session_id immediately after validation so the frontend gets
+    a response within milliseconds, then does RAG retrieval + LLM streaming.
+    """
     import json
 
-    chat_session, api_url, api_key, model, is_byok, sources, llm_messages = await _prepare_chat(
-        db, user_id, message, session_id, user,
-    )
+    # Flush Cloudflare's response buffer with a padded SSE comment (~2KB).
+    # Cloudflare buffers the first chunk; a large comment forces it to start streaming.
+    yield ": " + " " * 2048 + "\n\n"
 
-    # Emit session_id and sources immediately
+    # --- Phase 1: fast validation + session (no network calls) ---
+    if not message or not message.strip():
+        yield f"data: {json.dumps({'type': 'error', 'message': '消息不能为空'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return
+    if len(message) > 2000:
+        yield f"data: {json.dumps({'type': 'error', 'message': '消息长度不能超过2000字'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return
+    if user_id is None:
+        yield f"data: {json.dumps({'type': 'error', 'message': '请登录后使用 AI 问答功能'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return
+
+    if session_id:
+        chat_session = await get_session(db, session_id)
+        if chat_session is None:
+            chat_session = await create_session(db, user_id, title=message[:50])
+        elif chat_session.user_id != user_id:
+            yield f"data: {json.dumps({'type': 'error', 'message': '无权访问此会话'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+    else:
+        chat_session = await create_session(db, user_id, title=message[:50])
+
+    api_url, api_key, model, is_byok = _resolve_llm_config(user)
+    if not is_byok and not api_key:
+        yield f"data: {json.dumps({'type': 'error', 'message': '平台 AI 服务暂未配置。请在个人中心配置自己的 API Key 使用 AI 问答功能。'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return
+    if not is_byok and user:
+        today = date.today()
+        if user.last_chat_date != today:
+            user.daily_chat_count = 0
+            user.last_chat_date = today
+        if user.daily_chat_count >= FREE_DAILY_LIMIT:
+            yield f"data: {json.dumps({'type': 'error', 'message': f'今日免费额度已用完（{FREE_DAILY_LIMIT}次/天）。配置自己的 API Key 可无限使用。'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+        user.daily_chat_count += 1
+        await db.flush()
+
+    # Yield session_id immediately so frontend gets a fast response
     yield f"data: {json.dumps({'type': 'session_id', 'session_id': chat_session.id}, ensure_ascii=False)}\n\n"
+
+    # --- Phase 2: RAG retrieval (may take seconds) ---
+    sources: list[ChatSource] = []
+    context_text = ""
+    try:
+        dify_task = asyncio.ensure_future(dify_dataset_search(message, top_k=3))
+        query_embedding = await generate_embedding(message)
+        search_results = await similarity_search(db, query_embedding, limit=5)
+
+        sources = [ChatSource(**r) for r in search_results]
+        context_parts = []
+        for r in search_results:
+            label = f"《{r['title_zh']}》第{r['juan_num']}卷" if r.get("title_zh") else f"文本#{r['text_id']} 第{r['juan_num']}卷"
+            context_parts.append(f"[出处: {label}]\n{r['chunk_text']}")
+
+        try:
+            dify_results = await dify_task
+            for dr in dify_results:
+                sources.append(ChatSource(
+                    text_id=0, juan_num=0,
+                    chunk_text=dr["chunk_text"], score=dr["score"],
+                    title_zh="", source_type="dify",
+                ))
+                context_parts.append(f"[出处: 佛典知识库]\n{dr['chunk_text']}")
+        except Exception:
+            logger.warning("Dify retrieval failed, using pgvector results only")
+
+        context_text = "\n\n".join(context_parts)
+    except Exception:
+        logger.exception("Embedding/search failed, proceeding without RAG context")
+
     if sources:
         yield f"data: {json.dumps({'type': 'sources', 'sources': [s.model_dump() for s in sources]}, ensure_ascii=False)}\n\n"
 
-    # Stream LLM response
+    # Build messages for LLM
+    history = await get_history(db, chat_session.id)
+    llm_messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for msg in history[-10:]:
+        llm_messages.append({"role": msg.role, "content": msg.content})
+    if context_text:
+        llm_messages.append({
+            "role": "user",
+            "content": f"参考以下佛典原文片段:\n\n{context_text}\n\n用户问题: {message}",
+        })
+    else:
+        llm_messages.append({"role": "user", "content": message})
+
+    # --- Phase 3: stream LLM ---
     full_answer = ""
     try:
         async with httpx.AsyncClient(timeout=120) as client:

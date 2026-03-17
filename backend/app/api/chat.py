@@ -47,7 +47,12 @@ async def chat_stream(
     return StreamingResponse(
         send_message_stream(db, user_id, data.message, data.session_id, user=user),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "Transfer-Encoding": "chunked",
+            "Connection": "keep-alive",
+        },
     )
 
 
