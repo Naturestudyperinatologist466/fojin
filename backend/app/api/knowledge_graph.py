@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import KGEntityNotFoundError
 from app.database import get_db
 from app.schemas.knowledge_graph import (
     KGEntityDetailResponse,
@@ -41,7 +42,7 @@ async def search_kg_entities(
 async def get_kg_entity(entity_id: int, db: AsyncSession = Depends(get_db)):
     entity = await get_entity(db, entity_id)
     if not entity:
-        raise HTTPException(status_code=404, detail="实体未找到")
+        raise KGEntityNotFoundError(entity_id=entity_id)
     relations = await get_entity_relations(db, entity_id)
     return KGEntityDetailResponse(
         **KGEntityResponse.model_validate(entity).model_dump(),
@@ -59,7 +60,7 @@ async def get_kg_entity_graph(
 ):
     entity = await get_entity(db, entity_id)
     if not entity:
-        raise HTTPException(status_code=404, detail="实体未找到")
+        raise KGEntityNotFoundError(entity_id=entity_id)
     pred_list = [p.strip() for p in predicates.split(",") if p.strip()] if predicates else None
     graph = await get_entity_graph(db, entity_id, depth, max_nodes=max_nodes, predicates=pred_list)
     return graph

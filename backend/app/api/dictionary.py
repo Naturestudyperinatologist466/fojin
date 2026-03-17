@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from opencc import OpenCC
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.core.exceptions import DictionaryEntryNotFoundError
 from app.database import get_db
 from app.models.dictionary import DictionaryEntry
 
@@ -90,7 +91,7 @@ async def get_entry(entry_id: int, db: AsyncSession = Depends(get_db)):
     )
     entry = result.scalar_one_or_none()
     if not entry:
-        raise HTTPException(status_code=404, detail="词条未找到")
+        raise DictionaryEntryNotFoundError(entry_id=entry_id)
 
     return {
         "id": entry.id,

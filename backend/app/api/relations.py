@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import NotFoundError, TextNotFoundError
 from app.database import get_db
 from app.schemas.relation import ParallelReadResponse, RelatedTextInfo, TextRelationsResponse
 from app.services.relation import get_parallel_content, get_text_relations
@@ -17,7 +18,7 @@ async def list_text_relations(
 ):
     text = await get_text_by_id(db, text_id)
     if not text:
-        raise HTTPException(status_code=404, detail="经典未找到")
+        raise TextNotFoundError(text_id=text_id)
 
     relations = await get_text_relations(db, text_id)
     if relation_type:
@@ -38,5 +39,5 @@ async def parallel_read(
 ):
     result = await get_parallel_content(db, text_id, compare, juan)
     if not result:
-        raise HTTPException(status_code=404, detail="对照内容未找到")
+        raise NotFoundError("对照内容未找到")
     return result
