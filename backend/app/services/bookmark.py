@@ -1,7 +1,7 @@
-from fastapi import HTTPException, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import DuplicateBookmarkError, NotFoundError, TextNotFoundError
 from app.models.text import BuddhistText
 from app.models.user import Bookmark
 from app.schemas.bookmark import BookmarkResponse
@@ -43,7 +43,7 @@ async def add_bookmark(
     result = await session.execute(select(BuddhistText).where(BuddhistText.id == text_id))
     bt = result.scalar_one_or_none()
     if bt is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="经典未找到")
+        raise TextNotFoundError(text_id=text_id)
 
     # Check duplicate
     result = await session.execute(
@@ -51,7 +51,7 @@ async def add_bookmark(
     )
     existing = result.scalar_one_or_none()
     if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="已收藏")
+        raise DuplicateBookmarkError()
 
     bm = Bookmark(user_id=user_id, text_id=text_id, note=note)
     session.add(bm)
@@ -73,7 +73,7 @@ async def remove_bookmark(session: AsyncSession, user_id: int, text_id: int) -> 
         delete(Bookmark).where(Bookmark.user_id == user_id, Bookmark.text_id == text_id)
     )
     if result.rowcount == 0:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="收藏不存在")
+        raise NotFoundError("收藏不存在")
     await session.commit()
 
 

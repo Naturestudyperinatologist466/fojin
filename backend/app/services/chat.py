@@ -3,12 +3,19 @@ import logging
 from datetime import date
 
 import httpx
-from fastapi import HTTPException, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.crypto import decrypt_api_key
+from app.core.exceptions import (
+    AccessDeniedError,
+    AuthError,
+    NotFoundError,
+    QuotaExceededError,
+    ServiceError,
+    ValidationError,
+)
 from app.models.chat import ChatMessage, ChatSession
 from app.models.user import User
 from app.schemas.chat import ChatResponse, ChatSource
@@ -62,9 +69,9 @@ async def get_session_for_user(session: AsyncSession, session_id: int, user_id: 
     """获取会话并校验归属。user_id 必须匹配。"""
     cs = await get_session(session, session_id)
     if cs is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="会话未找到")
+        raise NotFoundError("会话未找到")
     if cs.user_id != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此会话")
+        raise AccessDeniedError("无权访问此会话")
     return cs
 
 
@@ -101,16 +108,13 @@ def _resolve_llm_config(user: User | None) -> tuple[str, str, str, bool]:
 
 
 async def _check_daily_quota(db: AsyncSession, user: User) -> None:
-    """Check and increment daily free chat quota. Raises HTTPException if exceeded."""
+    """Check and increment daily free chat quota. Raises QuotaExceededError if exceeded."""
     today = date.today()
     if user.last_chat_date != today:
         user.daily_chat_count = 0
         user.last_chat_date = today
     if user.daily_chat_count >= FREE_DAILY_LIMIT:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"今日免费额度已用完（{FREE_DAILY_LIMIT}次/天）。配置自己的 API Key 可无限使用。",
-        )
+        raise QuotaExceededError(limit=FREE_DAILY_LIMIT)
     user.daily_chat_count += 1
     await db.flush()
 
@@ -128,13 +132,13 @@ async def _prepare_chat(
     """
     # Validate message
     if not message or not message.strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="消息不能为空")
+        raise ValidationError("消息不能为空")
     if len(message) > 2000:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="消息长度不能超过2000字")
+        raise ValidationError("消息长度不能超过2000字")
 
     # Anonymous users cannot use chat
     if user_id is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请登录后使用 AI 问答功能")
+        raise AuthError("请登录后使用 AI 问答功能")
 
     # Get or create session, with strict ownership check
     if session_id:
@@ -142,7 +146,7 @@ async def _prepare_chat(
         if chat_session is None:
             chat_session = await create_session(db, user_id, title=message[:50])
         elif chat_session.user_id != user_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此会话")
+            raise AccessDeniedError("无权访问此会话")
     else:
         chat_session = await create_session(db, user_id, title=message[:50])
 
@@ -151,10 +155,7 @@ async def _prepare_chat(
 
     # Check if platform has LLM configured (for non-BYOK users)
     if not is_byok and not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="平台 AI 服务暂未配置。请在个人中心配置自己的 API Key 使用 AI 问答功能。",
-        )
+        raise ServiceError("平台 AI 服务暂未配置。请在个人中心配置自己的 API Key 使用 AI 问答功能。")
 
     # Daily quota check for non-BYOK users
     if not is_byok and user:
@@ -388,35 +389,34 @@ async def send_message_stream(
     # --- Phase 3: stream LLM ---
     full_answer = ""
     try:
-        async with httpx.AsyncClient(timeout=120) as client:
-            async with client.stream(
-                "POST",
-                f"{api_url}/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}"},
-                json={
-                    "model": model,
-                    "messages": llm_messages,
-                    "temperature": 0.7,
-                    "max_tokens": 2000,
-                    "stream": True,
-                },
-            ) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    payload = line[6:]
-                    if payload.strip() == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(payload)
-                        delta = chunk.get("choices", [{}])[0].get("delta", {})
-                        content = delta.get("content", "")
-                        if content:
-                            full_answer += content
-                            yield f"data: {json.dumps({'type': 'token', 'content': content}, ensure_ascii=False)}\n\n"
-                    except (json.JSONDecodeError, IndexError, KeyError):
-                        continue
+        async with httpx.AsyncClient(timeout=120) as client, client.stream(
+            "POST",
+            f"{api_url}/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": model,
+                "messages": llm_messages,
+                "temperature": 0.7,
+                "max_tokens": 2000,
+                "stream": True,
+            },
+        ) as resp:
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                payload = line[6:]
+                if payload.strip() == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(payload)
+                    delta = chunk.get("choices", [{}])[0].get("delta", {})
+                    content = delta.get("content", "")
+                    if content:
+                        full_answer += content
+                        yield f"data: {json.dumps({'type': 'token', 'content': content}, ensure_ascii=False)}\n\n"
+                except (json.JSONDecodeError, IndexError, KeyError):
+                    continue
     except httpx.TimeoutException:
         logger.warning("LLM stream timed out")
         error_msg = "抱歉，AI 服务响应超时，请稍后重试。"

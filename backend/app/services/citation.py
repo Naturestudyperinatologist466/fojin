@@ -1,7 +1,7 @@
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import TextNotFoundError
 from app.models.text import BuddhistText
 from app.schemas.citation import CitationResponse
 
@@ -12,7 +12,7 @@ async def generate_citation(
     result = await session.execute(select(BuddhistText).where(BuddhistText.id == text_id))
     text = result.scalar_one_or_none()
     if text is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="经典未找到")
+        raise TextNotFoundError(text_id=text_id)
 
     title = text.title_zh
     translator = text.translator or "佚名"

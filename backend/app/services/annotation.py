@@ -1,7 +1,7 @@
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import AccessDeniedError, NotFoundError, ValidationError
 from app.models.annotation import Annotation
 
 
@@ -35,7 +35,7 @@ async def get_annotation(session: AsyncSession, annotation_id: int) -> Annotatio
     result = await session.execute(select(Annotation).where(Annotation.id == annotation_id))
     ann = result.scalar_one_or_none()
     if ann is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="标注未找到")
+        raise NotFoundError("标注未找到")
     return ann
 
 
@@ -55,7 +55,7 @@ async def update_annotation(
 ) -> Annotation:
     ann = await get_annotation(session, annotation_id)
     if ann.user_id != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改")
+        raise AccessDeniedError("无权修改")
     if content is not None:
         ann.content = content
     await session.commit()
@@ -66,7 +66,7 @@ async def update_annotation(
 async def delete_annotation(session: AsyncSession, annotation_id: int, user_id: int) -> None:
     ann = await get_annotation(session, annotation_id)
     if ann.user_id != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权删除")
+        raise AccessDeniedError("无权删除")
     await session.delete(ann)
     await session.commit()
 
@@ -75,12 +75,9 @@ async def submit_annotation(session: AsyncSession, annotation_id: int, user_id: 
     """Submit a draft annotation for review (draft → pending)."""
     ann = await get_annotation(session, annotation_id)
     if ann.user_id != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权提交")
+        raise AccessDeniedError("无权提交")
     if ann.status != "draft":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"只有草稿状态的标注可以提交，当前状态: {ann.status}",
-        )
+        raise ValidationError(f"只有草稿状态的标注可以提交，当前状态: {ann.status}")
     ann.status = "pending"
     await session.commit()
     await session.refresh(ann)
@@ -99,10 +96,7 @@ async def review_annotation(
 
     ann = await get_annotation(session, annotation_id)
     if ann.status != "pending":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"只有待审核的标注可以审核，当前状态: {ann.status}",
-        )
+        raise ValidationError(f"只有待审核的标注可以审核，当前状态: {ann.status}")
 
     action_to_status = {
         "approve": "approved",
@@ -111,10 +105,7 @@ async def review_annotation(
     }
     new_status = action_to_status.get(action)
     if new_status is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"无效的审核动作: {action}，可选: approve/reject/request_change",
-        )
+        raise ValidationError(f"无效的审核动作: {action}，可选: approve/reject/request_change")
 
     ann.status = new_status
 
