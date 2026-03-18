@@ -30,11 +30,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy import select
+
 from app.database import async_session
-from app.models.text import BuddhistText
-from app.models.relation import TextRelation
 from app.models.knowledge_graph import KGEntity, KGRelation
+from app.models.relation import TextRelation
 from app.models.source import DataSource, TextIdentifier
+from app.models.text import BuddhistText
 
 # ── Source tags — every auto-generated relation records its provenance ──
 SOURCE_CBETA = "auto:cbeta_metadata"
@@ -42,6 +43,7 @@ SOURCE_ALT_TRANS = "auto:alt_translation"
 SOURCE_TEXT_REL_SYNC = "auto:text_relation_sync"
 SOURCE_CBETA_CF = "auto:cbeta_cf_note"
 SOURCE_TITLE_PATTERN = "auto:title_pattern"
+SOURCE_CONCEPT_MATCH = "auto:concept_title_match"
 
 BATCH_SIZE = 500
 
@@ -120,7 +122,7 @@ async def upsert_person_entities(session, person_map: dict[str, int]) -> int:
         entity = KGEntity(
             entity_type="person",
             name_zh=translator,
-            description=f"佛典译者" + (f"，{dynasty}" if dynasty else ""),
+            description="佛典译者" + (f"，{dynasty}" if dynasty else ""),
             properties={"role": "translator", **({"dynasty": dynasty} if dynasty else {})},
         )
         session.add(entity)
@@ -756,7 +758,7 @@ async def detect_commentary_by_title(
     created = 0
     batch_new: list[KGRelation] = []
 
-    for entity_id, name_zh, text_id in all_texts:
+    for entity_id, name_zh, _text_id in all_texts:
         if not name_zh:
             continue
         # Skip false positives (titles that contain 記 but aren't commentaries)
@@ -845,6 +847,103 @@ async def detect_commentary_by_title(
 
 
 # ═══════════════════════════════════════════════════════════════════
+# Pass G: Link texts to concept entities by title keywords
+# ═══════════════════════════════════════════════════════════════════
+
+# Concept name → keywords that trigger the association.
+# Each keyword is checked against text titles; if found, the text
+# gets an "associated_with" relation to the concept entity.
+_CONCEPT_KEYWORDS: dict[str, list[str]] = {
+    "缘起": ["缘起", "緣起", "因缘", "因緣"],
+    "四圣谛": ["四谛", "四諦", "圣谛", "聖諦"],
+    "八正道": ["八正道", "八聖道"],
+    "空性": ["般若波罗蜜", "般若波羅蜜", "空性"],
+    "唯识": ["唯识", "唯識", "瑜伽师地", "瑜伽師地", "成唯識", "成唯识"],
+    "佛性": ["如来藏", "如來藏", "佛性"],
+    "般若": ["般若"],
+    "涅槃": ["涅槃", "涅盤"],
+    "菩提": ["菩提"],
+    "三法印": ["三法印"],
+    "十二因缘": ["十二因缘", "十二因緣", "十二缘", "十二緣"],
+    "六波罗蜜": ["波罗蜜", "波羅蜜"],
+    "中道": ["中论", "中論", "中道"],
+    "三学": ["三学", "三學"],
+    "五蕴": ["五蕴", "五蘊", "五陰"],
+    "禅定": ["禅定", "禪定", "坐禅", "坐禪"],
+    "业": ["业报", "業報", "因果"],
+    "轮回": ["轮回", "輪迴", "六道"],
+}
+
+
+async def link_texts_to_concepts(
+    session,
+    text_map: dict[int, int],
+    existing: set[tuple[int, str, int]],
+) -> int:
+    """Link text entities to concept entities by title keyword matching.
+
+    For each concept entity, search text titles for associated keywords.
+    Creates 'associated_with' relations with confidence 0.7.
+    Source: auto:concept_title_match.
+    """
+    # Load concept entities
+    concept_result = await session.execute(
+        select(KGEntity.id, KGEntity.name_zh)
+        .where(KGEntity.entity_type == "concept")
+    )
+    concept_map = {name: eid for eid, name in concept_result.all()}
+    if not concept_map:
+        print("  No concept entities found, skipping.")
+        return 0
+
+    # Load all text entities with titles
+    text_result = await session.execute(
+        select(KGEntity.id, KGEntity.name_zh)
+        .where(KGEntity.entity_type == "text", KGEntity.name_zh.isnot(None))
+    )
+    all_texts = text_result.all()
+
+    created = 0
+    batch_new: list[KGRelation] = []
+
+    for concept_name, keywords in _CONCEPT_KEYWORDS.items():
+        concept_id = concept_map.get(concept_name)
+        if concept_id is None:
+            continue
+
+        for text_entity_id, title in all_texts:
+            if not title:
+                continue
+            if not any(kw in title for kw in keywords):
+                continue
+
+            key = (text_entity_id, "associated_with", concept_id)
+            if key in existing:
+                continue
+
+            batch_new.append(KGRelation(
+                subject_id=text_entity_id,
+                predicate="associated_with",
+                object_id=concept_id,
+                source=SOURCE_CONCEPT_MATCH,
+                confidence=0.7,
+                properties={
+                    "evidence_rule": f"title_keyword:{concept_name}",
+                    "evidence_source_title": title,
+                },
+            ))
+            existing.add(key)
+            created += 1
+
+    if batch_new:
+        for rel in batch_new:
+            session.add(rel)
+        await session.flush()
+
+    return created
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Main
 # ═══════════════════════════════════════════════════════════════════
 
@@ -922,6 +1021,14 @@ async def run(run_pass: str | None = None, dry_run: bool = False):
             tc = await detect_commentary_by_title(session, text_map, title_rels)
             print(f"  commentary_on (title): +{tc}")
 
+        # ── Pass G ──
+        if run_all or run_pass == "G":
+            print("\n── Pass G: Link texts to concepts by title keywords ──")
+            concept_rels = await load_relation_keys(session, SOURCE_CONCEPT_MATCH)
+            print(f"  Existing {SOURCE_CONCEPT_MATCH} relations: {len(concept_rels)}")
+            lc = await link_texts_to_concepts(session, text_map, concept_rels)
+            print(f"  associated_with (concept): +{lc}")
+
         # Commit or rollback
         if dry_run:
             await session.rollback()
@@ -938,7 +1045,7 @@ def main():
         description="Extract structured KG from buddhist_texts metadata (idempotent)."
     )
     parser.add_argument(
-        "--pass", dest="run_pass", choices=["A", "B", "C", "D", "E", "F"],
+        "--pass", dest="run_pass", choices=["A", "B", "C", "D", "E", "F", "G"],
         help="Run only a specific pass (default: all)",
     )
     parser.add_argument(
