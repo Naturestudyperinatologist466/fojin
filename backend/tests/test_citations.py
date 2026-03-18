@@ -96,8 +96,8 @@ async def test_citation_harvard():
 
 @pytest.mark.anyio
 async def test_citation_not_found():
-    """Citation for non-existent text should raise 404."""
-    from fastapi import HTTPException
+    """Citation for non-existent text should raise TextNotFoundError."""
+    from app.core.exceptions import TextNotFoundError
     from app.services.citation import generate_citation
 
     mock_session = AsyncMock()
@@ -105,6 +105,5 @@ async def test_citation_not_found():
     mock_result.scalar_one_or_none.return_value = None
     mock_session.execute.return_value = mock_result
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(TextNotFoundError):
         await generate_citation(mock_session, text_id=999)
-    assert exc_info.value.status_code == 404

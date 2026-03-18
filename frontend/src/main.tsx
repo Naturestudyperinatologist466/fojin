@@ -6,18 +6,6 @@ import { HelmetProvider } from "react-helmet-async";
 import App from "./App";
 import "./styles/global.css";
 
-// Dify AI 助手：从环境变量注入配置并加载 embed 脚本
-(() => {
-  const token = import.meta.env.VITE_DIFY_APP_TOKEN;
-  const baseUrl = import.meta.env.VITE_DIFY_BASE_URL;
-  if (!token || !baseUrl) return; // Dify not configured — skip silently
-  (window as any).difyChatbotConfig = { token, baseUrl };
-  const s = document.createElement("script");
-  s.src = `${baseUrl}/embed.min.js`;
-  s.async = true;
-  document.body.appendChild(s);
-})();
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

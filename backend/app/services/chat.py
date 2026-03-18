@@ -1,17 +1,26 @@
+import json
 import logging
+import time as _time
 from datetime import date
 
 import httpx
-from fastapi import HTTPException, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.crypto import decrypt_api_key
+from app.core.exceptions import (
+    AccessDeniedError,
+    AuthError,
+    NotFoundError,
+    QuotaExceededError,
+    ServiceError,
+    ValidationError,
+)
 from app.models.chat import ChatMessage, ChatSession
 from app.models.user import User
 from app.schemas.chat import ChatResponse, ChatSource
-from app.services.embedding import generate_embedding, similarity_search
+from app.services.rag_retrieval import retrieve_rag_context
 
 logger = logging.getLogger(__name__)
 
@@ -60,9 +69,9 @@ async def get_session_for_user(session: AsyncSession, session_id: int, user_id: 
     """获取会话并校验归属。user_id 必须匹配。"""
     cs = await get_session(session, session_id)
     if cs is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="会话未找到")
+        raise NotFoundError("会话未找到")
     if cs.user_id != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此会话")
+        raise AccessDeniedError("无权访问此会话")
     return cs
 
 
@@ -99,18 +108,105 @@ def _resolve_llm_config(user: User | None) -> tuple[str, str, str, bool]:
 
 
 async def _check_daily_quota(db: AsyncSession, user: User) -> None:
-    """Check and increment daily free chat quota. Raises HTTPException if exceeded."""
+    """Check and increment daily free chat quota. Raises QuotaExceededError if exceeded."""
     today = date.today()
     if user.last_chat_date != today:
         user.daily_chat_count = 0
         user.last_chat_date = today
     if user.daily_chat_count >= FREE_DAILY_LIMIT:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"今日免费额度已用完（{FREE_DAILY_LIMIT}次/天）。配置自己的 API Key 可无限使用。",
-        )
+        raise QuotaExceededError(limit=FREE_DAILY_LIMIT)
     user.daily_chat_count += 1
     await db.flush()
+
+
+def _validate_message(message: str) -> None:
+    """Validate chat message content."""
+    if not message or not message.strip():
+        raise ValidationError("消息不能为空")
+    if len(message) > 2000:
+        raise ValidationError("消息长度不能超过2000字")
+
+
+async def _resolve_session(
+    db: AsyncSession, user_id: int, message: str, session_id: int | None
+) -> ChatSession:
+    """Get or create a chat session, with ownership check."""
+    if session_id:
+        chat_session = await get_session(db, session_id)
+        if chat_session is None:
+            return await create_session(db, user_id, title=message[:50])
+        if chat_session.user_id != user_id:
+            raise AccessDeniedError("无权访问此会话")
+        return chat_session
+    return await create_session(db, user_id, title=message[:50])
+
+
+def _build_llm_messages(
+    history: list[ChatMessage], context_text: str, message: str
+) -> list[dict[str, str]]:
+    """Build the message list for the LLM call."""
+    llm_messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for msg in history[-10:]:
+        llm_messages.append({"role": msg.role, "content": msg.content})
+    if context_text:
+        llm_messages.append({
+            "role": "user",
+            "content": f"参考以下佛典原文片段:\n\n{context_text}\n\n用户问题: {message}",
+        })
+    else:
+        llm_messages.append({"role": "user", "content": message})
+    return llm_messages
+
+
+async def _save_messages(
+    db: AsyncSession, session_id: int, message: str, answer: str, sources: list[ChatSource]
+) -> None:
+    """Persist user + assistant messages to the database."""
+    user_msg = ChatMessage(session_id=session_id, role="user", content=message)
+    assistant_msg = ChatMessage(
+        session_id=session_id,
+        role="assistant",
+        content=answer,
+        sources=[s.model_dump() for s in sources] if sources else None,
+    )
+    db.add(user_msg)
+    db.add(assistant_msg)
+    await db.commit()
+
+
+async def _prepare_chat(
+    db: AsyncSession,
+    user_id: int | None,
+    message: str,
+    session_id: int | None = None,
+    user: User | None = None,
+) -> tuple[ChatSession, str, str, str, bool, list[ChatSource], list[dict[str, str]]]:
+    """Shared setup for send_message and send_message_stream.
+
+    Returns (chat_session, api_url, api_key, model, is_byok, sources, llm_messages).
+    """
+    _validate_message(message)
+
+    if user_id is None:
+        raise AuthError("请登录后使用 AI 问答功能")
+
+    chat_session = await _resolve_session(db, user_id, message, session_id)
+    api_url, api_key, model, is_byok = _resolve_llm_config(user)
+
+    if not is_byok and not api_key:
+        raise ServiceError("平台 AI 服务暂未配置。请在个人中心配置自己的 API Key 使用 AI 问答功能。")
+
+    if not is_byok and user:
+        await _check_daily_quota(db, user)
+
+    # RAG: hybrid retrieval
+    sources, context_text = await retrieve_rag_context(db, message)
+
+    # Build messages for LLM
+    history = await get_history(db, chat_session.id)
+    llm_messages = _build_llm_messages(history, context_text, message)
+
+    return chat_session, api_url, api_key, model, is_byok, sources, llm_messages
 
 
 async def send_message(
@@ -120,67 +216,12 @@ async def send_message(
     session_id: int | None = None,
     user: User | None = None,
 ) -> ChatResponse:
-    # Validate message
-    if not message or not message.strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="消息不能为空")
-    if len(message) > 2000:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="消息长度不能超过2000字")
-
-    # Anonymous users cannot use chat
-    if user_id is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请登录后使用 AI 问答功能")
-
-    # Get or create session, with strict ownership check
-    if session_id:
-        chat_session = await get_session(db, session_id)
-        if chat_session is None:
-            chat_session = await create_session(db, user_id, title=message[:50])
-        elif chat_session.user_id != user_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此会话")
-    else:
-        chat_session = await create_session(db, user_id, title=message[:50])
-
-    # Resolve LLM config (BYOK or platform)
-    api_url, api_key, model, is_byok = _resolve_llm_config(user)
-
-    # Check if platform has LLM configured (for non-BYOK users)
-    if not is_byok and not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="平台 AI 服务暂未配置。请在个人中心配置自己的 API Key 使用 AI 问答功能。",
-        )
-
-    # Daily quota check for non-BYOK users
-    if not is_byok and user:
-        await _check_daily_quota(db, user)
-
-    # RAG: generate embedding and search
-    sources: list[ChatSource] = []
-    context_text = ""
-    try:
-        query_embedding = await generate_embedding(message)
-        search_results = await similarity_search(db, query_embedding, limit=5)
-        sources = [ChatSource(**r) for r in search_results]
-        context_text = "\n\n".join(
-            f"[出处: 文本#{r['text_id']} 第{r['juan_num']}卷]\n{r['chunk_text']}"
-            for r in search_results
-        )
-    except Exception:
-        logger.exception("Embedding/search failed, proceeding without RAG context")
-
-    # Build messages for LLM
-    history = await get_history(db, chat_session.id)
-    llm_messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
-    for msg in history[-10:]:
-        llm_messages.append({"role": msg.role, "content": msg.content})
-
-    if context_text:
-        llm_messages.append({
-            "role": "user",
-            "content": f"参考以下佛典原文片段:\n\n{context_text}\n\n用户问题: {message}",
-        })
-    else:
-        llm_messages.append({"role": "user", "content": message})
+    _t0 = _time.monotonic()
+    chat_session, api_url, api_key, model, is_byok, sources, llm_messages = await _prepare_chat(
+        db, user_id, message, session_id, user,
+    )
+    _t1 = _time.monotonic()
+    logger.debug("TIMING: _prepare_chat took %.2fs", _t1 - _t0)
 
     # Call LLM
     try:
@@ -197,6 +238,7 @@ async def send_message(
             )
             resp.raise_for_status()
             answer = resp.json()["choices"][0]["message"]["content"]
+        logger.debug("TIMING: LLM call took %.2fs", _time.monotonic() - _t1)
     except httpx.TimeoutException:
         logger.warning("LLM call timed out")
         answer = "抱歉，AI 服务响应超时，请稍后重试。"
@@ -210,23 +252,128 @@ async def send_message(
         logger.exception("LLM call failed")
         answer = "抱歉，AI 服务暂时不可用，请稍后重试。"
 
-    # Save messages
-    user_msg = ChatMessage(session_id=chat_session.id, role="user", content=message)
-    assistant_msg = ChatMessage(
-        session_id=chat_session.id,
-        role="assistant",
-        content=answer,
-        sources=[s.model_dump() for s in sources] if sources else None,
-    )
-    db.add(user_msg)
-    db.add(assistant_msg)
-    await db.commit()
+    await _save_messages(db, chat_session.id, message, answer, sources)
 
     return ChatResponse(
         session_id=chat_session.id,
         message=answer,
         sources=sources,
     )
+
+
+async def send_message_stream(
+    db: AsyncSession,
+    user_id: int | None,
+    message: str,
+    session_id: int | None = None,
+    user: User | None = None,
+):
+    """Async generator yielding SSE events for streaming chat responses.
+
+    Yields session_id immediately after validation so the frontend gets
+    a response within milliseconds, then does RAG retrieval + LLM streaming.
+    """
+    # Flush Cloudflare's response buffer with a padded SSE comment (~2KB).
+    yield ": " + " " * 2048 + "\n\n"
+
+    # --- Phase 1: fast validation + session (no network calls) ---
+    if not message or not message.strip():
+        yield f"data: {json.dumps({'type': 'error', 'message': '消息不能为空'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return
+    if len(message) > 2000:
+        yield f"data: {json.dumps({'type': 'error', 'message': '消息长度不能超过2000字'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return
+    if user_id is None:
+        yield f"data: {json.dumps({'type': 'error', 'message': '请登录后使用 AI 问答功能'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return
+
+    chat_session = await _resolve_session(db, user_id, message, session_id)
+
+    api_url, api_key, model, is_byok = _resolve_llm_config(user)
+    if not is_byok and not api_key:
+        yield f"data: {json.dumps({'type': 'error', 'message': '平台 AI 服务暂未配置。请在个人中心配置自己的 API Key 使用 AI 问答功能。'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return
+    if not is_byok and user:
+        today = date.today()
+        if user.last_chat_date != today:
+            user.daily_chat_count = 0
+            user.last_chat_date = today
+        if user.daily_chat_count >= FREE_DAILY_LIMIT:
+            yield f"data: {json.dumps({'type': 'error', 'message': f'今日免费额度已用完（{FREE_DAILY_LIMIT}次/天）。配置自己的 API Key 可无限使用。'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+        user.daily_chat_count += 1
+        await db.flush()
+
+    # Yield session_id immediately so frontend gets a fast response
+    yield f"data: {json.dumps({'type': 'session_id', 'session_id': chat_session.id}, ensure_ascii=False)}\n\n"
+
+    # --- Phase 2: RAG retrieval (may take seconds) ---
+    sources, context_text = await retrieve_rag_context(db, message)
+
+    if sources:
+        yield f"data: {json.dumps({'type': 'sources', 'sources': [s.model_dump() for s in sources]}, ensure_ascii=False)}\n\n"
+
+    # Build messages for LLM
+    history = await get_history(db, chat_session.id)
+    llm_messages = _build_llm_messages(history, context_text, message)
+
+    # --- Phase 3: stream LLM ---
+    full_answer = ""
+    try:
+        async with httpx.AsyncClient(timeout=120) as client, client.stream(
+            "POST",
+            f"{api_url}/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": model,
+                "messages": llm_messages,
+                "temperature": 0.7,
+                "max_tokens": 2000,
+                "stream": True,
+            },
+        ) as resp:
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                payload = line[6:]
+                if payload.strip() == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(payload)
+                    delta = chunk.get("choices", [{}])[0].get("delta", {})
+                    content = delta.get("content", "")
+                    if content:
+                        full_answer += content
+                        yield f"data: {json.dumps({'type': 'token', 'content': content}, ensure_ascii=False)}\n\n"
+                except (json.JSONDecodeError, IndexError, KeyError):
+                    continue
+    except httpx.TimeoutException:
+        logger.warning("LLM stream timed out")
+        error_msg = "抱歉，AI 服务响应超时，请稍后重试。"
+        yield f"data: {json.dumps({'type': 'error', 'message': error_msg}, ensure_ascii=False)}\n\n"
+        full_answer = full_answer or error_msg
+    except httpx.HTTPStatusError as exc:
+        logger.warning("LLM stream returned HTTP %s", exc.response.status_code)
+        if is_byok and exc.response.status_code == 401:
+            error_msg = "您的 API Key 无效或已过期，请在个人中心重新配置。"
+        else:
+            error_msg = f"抱歉，AI 服务返回错误（HTTP {exc.response.status_code}），请稍后重试。"
+        yield f"data: {json.dumps({'type': 'error', 'message': error_msg}, ensure_ascii=False)}\n\n"
+        full_answer = full_answer or error_msg
+    except Exception:
+        logger.exception("LLM stream failed")
+        error_msg = "抱歉，AI 服务暂时不可用，请稍后重试。"
+        yield f"data: {json.dumps({'type': 'error', 'message': error_msg}, ensure_ascii=False)}\n\n"
+        full_answer = full_answer or error_msg
+
+    await _save_messages(db, chat_session.id, message, full_answer, sources)
+    yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 
 async def delete_session(db: AsyncSession, session_id: int, user_id: int) -> None:

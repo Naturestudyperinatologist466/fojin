@@ -75,6 +75,32 @@ class SuggestionNotFoundError(NotFoundError):
     message = "推荐记录不存在"
 
 
+# ---- Conflict errors ----
+
+class ConflictError(FoJinError):
+    """Resource already exists or conflicts with current state."""
+
+    message = "资源冲突"
+
+
+class DuplicateBookmarkError(ConflictError):
+    """Bookmark already exists for this text."""
+
+    message = "已收藏"
+
+
+class DuplicateUsernameError(ConflictError):
+    """Username is already taken."""
+
+    message = "用户名已存在"
+
+
+class DuplicateEmailError(ConflictError):
+    """Email is already registered."""
+
+    message = "邮箱已被注册"
+
+
 # ---- Service errors ----
 
 class ServiceError(FoJinError):
@@ -101,6 +127,12 @@ class LLMServiceError(ServiceError):
     message = "AI 服务暂时不可用"
 
 
+class EmbeddingServiceError(ServiceError):
+    """Embedding API error."""
+
+    message = "向量服务暂时不可用"
+
+
 # ---- Auth errors ----
 
 class AuthError(FoJinError):
@@ -121,12 +153,38 @@ class TokenExpiredError(AuthError):
     message = "登录已过期，请重新登录"
 
 
+class AccountDisabledError(AuthError):
+    """User account is disabled."""
+
+    message = "账号已被禁用"
+
+
+# ---- Authorization errors ----
+
+class AccessDeniedError(FoJinError):
+    """User does not have permission to access this resource."""
+
+    message = "无权访问"
+
+
 # ---- Validation errors ----
 
 class ValidationError(FoJinError):
     """Input validation error."""
 
     message = "输入参数无效"
+
+
+# ---- Quota errors ----
+
+class QuotaExceededError(FoJinError):
+    """User has exceeded their usage quota."""
+
+    message = "额度已用完"
+
+    def __init__(self, limit: int):
+        super().__init__(f"今日免费额度已用完（{limit}次/天）。配置自己的 API Key 可无限使用。")
+        self.limit = limit
 
 
 # ---- Converter: FoJinError -> HTTPException ----
@@ -139,14 +197,22 @@ STATUS_MAP: dict[type, int] = {
     KGEntityNotFoundError: status.HTTP_404_NOT_FOUND,
     ManifestNotFoundError: status.HTTP_404_NOT_FOUND,
     SuggestionNotFoundError: status.HTTP_404_NOT_FOUND,
+    ConflictError: status.HTTP_409_CONFLICT,
+    DuplicateBookmarkError: status.HTTP_409_CONFLICT,
+    DuplicateUsernameError: status.HTTP_409_CONFLICT,
+    DuplicateEmailError: status.HTTP_409_CONFLICT,
     AuthError: status.HTTP_401_UNAUTHORIZED,
     InvalidCredentialsError: status.HTTP_401_UNAUTHORIZED,
     TokenExpiredError: status.HTTP_401_UNAUTHORIZED,
+    AccountDisabledError: status.HTTP_403_FORBIDDEN,
+    AccessDeniedError: status.HTTP_403_FORBIDDEN,
     ValidationError: status.HTTP_422_UNPROCESSABLE_ENTITY,
+    QuotaExceededError: status.HTTP_429_TOO_MANY_REQUESTS,
     ServiceError: status.HTTP_503_SERVICE_UNAVAILABLE,
     SearchServiceError: status.HTTP_503_SERVICE_UNAVAILABLE,
     DianjinServiceError: status.HTTP_502_BAD_GATEWAY,
     LLMServiceError: status.HTTP_503_SERVICE_UNAVAILABLE,
+    EmbeddingServiceError: status.HTTP_503_SERVICE_UNAVAILABLE,
 }
 
 

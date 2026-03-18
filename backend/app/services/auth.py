@@ -1,8 +1,13 @@
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import create_access_token, hash_password, verify_password
+from app.core.exceptions import (
+    AccountDisabledError,
+    DuplicateEmailError,
+    DuplicateUsernameError,
+    InvalidCredentialsError,
+)
 from app.models.user import User
 from app.schemas.user import TokenResponse, UserRegister
 
@@ -11,12 +16,12 @@ async def register_user(db: AsyncSession, data: UserRegister) -> User:
     # Check username
     result = await db.execute(select(User).where(User.username == data.username))
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="用户名已存在")
+        raise DuplicateUsernameError()
 
     # Check email
     result = await db.execute(select(User).where(User.email == data.email))
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="邮箱已被注册")
+        raise DuplicateEmailError()
 
     user = User(
         username=data.username,
@@ -35,10 +40,10 @@ async def login_user(db: AsyncSession, username: str, password: str) -> TokenRes
     user = result.scalar_one_or_none()
 
     if user is None or not verify_password(password, user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
+        raise InvalidCredentialsError()
 
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+        raise AccountDisabledError()
 
     token = create_access_token(user.id)
     return TokenResponse(access_token=token)

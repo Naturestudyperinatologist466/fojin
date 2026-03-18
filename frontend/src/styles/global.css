@@ -72,15 +72,6 @@ em {
   .nav-mobile-trigger { display: inline-flex !important; }
 }
 
-/* ========== Dify Chatbot Bubble ========== */
-#dify-chatbot-bubble-button {
-  background-color: #8b2500 !important;
-}
-#dify-chatbot-bubble-window {
-  width: 400px !important;
-  height: 600px !important;
-}
-
 /* ========== Chat Markdown ========== */
 .chat-markdown p { margin: 0 0 0.5em; }
 .chat-markdown p:last-child { margin-bottom: 0; }
