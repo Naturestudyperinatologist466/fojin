@@ -1,5 +1,6 @@
-import asyncio
+import json
 import logging
+import time as _time
 from datetime import date
 
 import httpx
@@ -19,8 +20,7 @@ from app.core.exceptions import (
 from app.models.chat import ChatMessage, ChatSession
 from app.models.user import User
 from app.schemas.chat import ChatResponse, ChatSource
-from app.services.dify_retrieval import dify_dataset_search
-from app.services.embedding import generate_embedding, similarity_search
+from app.services.rag_retrieval import retrieve_rag_context
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +119,61 @@ async def _check_daily_quota(db: AsyncSession, user: User) -> None:
     await db.flush()
 
 
+def _validate_message(message: str) -> None:
+    """Validate chat message content."""
+    if not message or not message.strip():
+        raise ValidationError("消息不能为空")
+    if len(message) > 2000:
+        raise ValidationError("消息长度不能超过2000字")
+
+
+async def _resolve_session(
+    db: AsyncSession, user_id: int, message: str, session_id: int | None
+) -> ChatSession:
+    """Get or create a chat session, with ownership check."""
+    if session_id:
+        chat_session = await get_session(db, session_id)
+        if chat_session is None:
+            return await create_session(db, user_id, title=message[:50])
+        if chat_session.user_id != user_id:
+            raise AccessDeniedError("无权访问此会话")
+        return chat_session
+    return await create_session(db, user_id, title=message[:50])
+
+
+def _build_llm_messages(
+    history: list[ChatMessage], context_text: str, message: str
+) -> list[dict[str, str]]:
+    """Build the message list for the LLM call."""
+    llm_messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for msg in history[-10:]:
+        llm_messages.append({"role": msg.role, "content": msg.content})
+    if context_text:
+        llm_messages.append({
+            "role": "user",
+            "content": f"参考以下佛典原文片段:\n\n{context_text}\n\n用户问题: {message}",
+        })
+    else:
+        llm_messages.append({"role": "user", "content": message})
+    return llm_messages
+
+
+async def _save_messages(
+    db: AsyncSession, session_id: int, message: str, answer: str, sources: list[ChatSource]
+) -> None:
+    """Persist user + assistant messages to the database."""
+    user_msg = ChatMessage(session_id=session_id, role="user", content=message)
+    assistant_msg = ChatMessage(
+        session_id=session_id,
+        role="assistant",
+        content=answer,
+        sources=[s.model_dump() for s in sources] if sources else None,
+    )
+    db.add(user_msg)
+    db.add(assistant_msg)
+    await db.commit()
+
+
 async def _prepare_chat(
     db: AsyncSession,
     user_id: int | None,
@@ -130,85 +185,26 @@ async def _prepare_chat(
 
     Returns (chat_session, api_url, api_key, model, is_byok, sources, llm_messages).
     """
-    # Validate message
-    if not message or not message.strip():
-        raise ValidationError("消息不能为空")
-    if len(message) > 2000:
-        raise ValidationError("消息长度不能超过2000字")
+    _validate_message(message)
 
-    # Anonymous users cannot use chat
     if user_id is None:
         raise AuthError("请登录后使用 AI 问答功能")
 
-    # Get or create session, with strict ownership check
-    if session_id:
-        chat_session = await get_session(db, session_id)
-        if chat_session is None:
-            chat_session = await create_session(db, user_id, title=message[:50])
-        elif chat_session.user_id != user_id:
-            raise AccessDeniedError("无权访问此会话")
-    else:
-        chat_session = await create_session(db, user_id, title=message[:50])
-
-    # Resolve LLM config (BYOK or platform)
+    chat_session = await _resolve_session(db, user_id, message, session_id)
     api_url, api_key, model, is_byok = _resolve_llm_config(user)
 
-    # Check if platform has LLM configured (for non-BYOK users)
     if not is_byok and not api_key:
         raise ServiceError("平台 AI 服务暂未配置。请在个人中心配置自己的 API Key 使用 AI 问答功能。")
 
-    # Daily quota check for non-BYOK users
     if not is_byok and user:
         await _check_daily_quota(db, user)
 
-    # RAG: hybrid retrieval — pgvector + Dify datasets in parallel
-    import time as _time
-    _rag_t0 = _time.monotonic()
-    sources: list[ChatSource] = []
-    context_text = ""
-    try:
-        dify_task = asyncio.ensure_future(dify_dataset_search(message, top_k=3))
-        query_embedding = await generate_embedding(message)
-        _rag_t1 = _time.monotonic()
-        logger.debug("TIMING: Embedding took %.2fs", _rag_t1 - _rag_t0)
-        search_results = await similarity_search(db, query_embedding, limit=5)
-        logger.debug("TIMING: pgvector search took %.2fs", _time.monotonic() - _rag_t1)
-
-        sources = [ChatSource(**r) for r in search_results]
-        context_parts = []
-        for r in search_results:
-            label = f"《{r['title_zh']}》第{r['juan_num']}卷" if r.get("title_zh") else f"文本#{r['text_id']} 第{r['juan_num']}卷"
-            context_parts.append(f"[出处: {label}]\n{r['chunk_text']}")
-
-        try:
-            dify_results = await dify_task
-            for dr in dify_results:
-                sources.append(ChatSource(
-                    text_id=0, juan_num=0,
-                    chunk_text=dr["chunk_text"], score=dr["score"],
-                    title_zh="", source_type="dify",
-                ))
-                context_parts.append(f"[出处: 佛典知识库]\n{dr['chunk_text']}")
-        except Exception:
-            logger.warning("Dify retrieval failed, using pgvector results only")
-
-        context_text = "\n\n".join(context_parts)
-    except Exception:
-        logger.exception("Embedding/search failed, proceeding without RAG context")
+    # RAG: hybrid retrieval
+    sources, context_text = await retrieve_rag_context(db, message)
 
     # Build messages for LLM
     history = await get_history(db, chat_session.id)
-    llm_messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
-    for msg in history[-10:]:
-        llm_messages.append({"role": msg.role, "content": msg.content})
-
-    if context_text:
-        llm_messages.append({
-            "role": "user",
-            "content": f"参考以下佛典原文片段:\n\n{context_text}\n\n用户问题: {message}",
-        })
-    else:
-        llm_messages.append({"role": "user", "content": message})
+    llm_messages = _build_llm_messages(history, context_text, message)
 
     return chat_session, api_url, api_key, model, is_byok, sources, llm_messages
 
@@ -220,7 +216,6 @@ async def send_message(
     session_id: int | None = None,
     user: User | None = None,
 ) -> ChatResponse:
-    import time as _time
     _t0 = _time.monotonic()
     chat_session, api_url, api_key, model, is_byok, sources, llm_messages = await _prepare_chat(
         db, user_id, message, session_id, user,
@@ -243,8 +238,7 @@ async def send_message(
             )
             resp.raise_for_status()
             answer = resp.json()["choices"][0]["message"]["content"]
-        _t2 = _time.monotonic()
-        logger.debug("TIMING: LLM call took %.2fs", _t2 - _t1)
+        logger.debug("TIMING: LLM call took %.2fs", _time.monotonic() - _t1)
     except httpx.TimeoutException:
         logger.warning("LLM call timed out")
         answer = "抱歉，AI 服务响应超时，请稍后重试。"
@@ -258,17 +252,7 @@ async def send_message(
         logger.exception("LLM call failed")
         answer = "抱歉，AI 服务暂时不可用，请稍后重试。"
 
-    # Save messages
-    user_msg = ChatMessage(session_id=chat_session.id, role="user", content=message)
-    assistant_msg = ChatMessage(
-        session_id=chat_session.id,
-        role="assistant",
-        content=answer,
-        sources=[s.model_dump() for s in sources] if sources else None,
-    )
-    db.add(user_msg)
-    db.add(assistant_msg)
-    await db.commit()
+    await _save_messages(db, chat_session.id, message, answer, sources)
 
     return ChatResponse(
         session_id=chat_session.id,
@@ -289,10 +273,7 @@ async def send_message_stream(
     Yields session_id immediately after validation so the frontend gets
     a response within milliseconds, then does RAG retrieval + LLM streaming.
     """
-    import json
-
     # Flush Cloudflare's response buffer with a padded SSE comment (~2KB).
-    # Cloudflare buffers the first chunk; a large comment forces it to start streaming.
     yield ": " + " " * 2048 + "\n\n"
 
     # --- Phase 1: fast validation + session (no network calls) ---
@@ -309,16 +290,7 @@ async def send_message_stream(
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         return
 
-    if session_id:
-        chat_session = await get_session(db, session_id)
-        if chat_session is None:
-            chat_session = await create_session(db, user_id, title=message[:50])
-        elif chat_session.user_id != user_id:
-            yield f"data: {json.dumps({'type': 'error', 'message': '无权访问此会话'})}\n\n"
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
-            return
-    else:
-        chat_session = await create_session(db, user_id, title=message[:50])
+    chat_session = await _resolve_session(db, user_id, message, session_id)
 
     api_url, api_key, model, is_byok = _resolve_llm_config(user)
     if not is_byok and not api_key:
@@ -341,50 +313,14 @@ async def send_message_stream(
     yield f"data: {json.dumps({'type': 'session_id', 'session_id': chat_session.id}, ensure_ascii=False)}\n\n"
 
     # --- Phase 2: RAG retrieval (may take seconds) ---
-    sources: list[ChatSource] = []
-    context_text = ""
-    try:
-        dify_task = asyncio.ensure_future(dify_dataset_search(message, top_k=3))
-        query_embedding = await generate_embedding(message)
-        search_results = await similarity_search(db, query_embedding, limit=5)
-
-        sources = [ChatSource(**r) for r in search_results]
-        context_parts = []
-        for r in search_results:
-            label = f"《{r['title_zh']}》第{r['juan_num']}卷" if r.get("title_zh") else f"文本#{r['text_id']} 第{r['juan_num']}卷"
-            context_parts.append(f"[出处: {label}]\n{r['chunk_text']}")
-
-        try:
-            dify_results = await dify_task
-            for dr in dify_results:
-                sources.append(ChatSource(
-                    text_id=0, juan_num=0,
-                    chunk_text=dr["chunk_text"], score=dr["score"],
-                    title_zh="", source_type="dify",
-                ))
-                context_parts.append(f"[出处: 佛典知识库]\n{dr['chunk_text']}")
-        except Exception:
-            logger.warning("Dify retrieval failed, using pgvector results only")
-
-        context_text = "\n\n".join(context_parts)
-    except Exception:
-        logger.exception("Embedding/search failed, proceeding without RAG context")
+    sources, context_text = await retrieve_rag_context(db, message)
 
     if sources:
         yield f"data: {json.dumps({'type': 'sources', 'sources': [s.model_dump() for s in sources]}, ensure_ascii=False)}\n\n"
 
     # Build messages for LLM
     history = await get_history(db, chat_session.id)
-    llm_messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
-    for msg in history[-10:]:
-        llm_messages.append({"role": msg.role, "content": msg.content})
-    if context_text:
-        llm_messages.append({
-            "role": "user",
-            "content": f"参考以下佛典原文片段:\n\n{context_text}\n\n用户问题: {message}",
-        })
-    else:
-        llm_messages.append({"role": "user", "content": message})
+    llm_messages = _build_llm_messages(history, context_text, message)
 
     # --- Phase 3: stream LLM ---
     full_answer = ""
@@ -436,18 +372,7 @@ async def send_message_stream(
         yield f"data: {json.dumps({'type': 'error', 'message': error_msg}, ensure_ascii=False)}\n\n"
         full_answer = full_answer or error_msg
 
-    # Save messages
-    user_msg = ChatMessage(session_id=chat_session.id, role="user", content=message)
-    assistant_msg = ChatMessage(
-        session_id=chat_session.id,
-        role="assistant",
-        content=full_answer,
-        sources=[s.model_dump() for s in sources] if sources else None,
-    )
-    db.add(user_msg)
-    db.add(assistant_msg)
-    await db.commit()
-
+    await _save_messages(db, chat_session.id, message, full_answer, sources)
     yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 
