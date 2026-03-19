@@ -11,19 +11,15 @@ import {
   RobotOutlined,
   BookOutlined,
 } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
 import SourceSelector from "../components/SourceSelector";
 import { getStats, getSources, getFilters } from "../api/client";
 import { getLangName } from "../utils/sourceUrls";
 import "../styles/home.css";
 
-const HOT_TAGS = [
-  "金刚经", "心经", "华严经", "楞严经",
-  "玄奘", "鸠摩罗什",
-  "禅宗", "天台宗",
-];
-
 export default function HomePage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
   const [sourceOpen, setSourceOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -53,13 +49,14 @@ export default function HomePage() {
     : 0;
   const srcCount = sources?.length || 0;
   const srcLabel = selectedSources.size > 0
-    ? `已选 ${selectedSources.size} 源`
-    : "全部数据源";
+    ? t("home.selected_sources", { count: selectedSources.size })
+    : t("home.all_sources");
+  const hotTags = t("home.hot_tags", { returnObjects: true }) as string[];
 
   return (
     <div className="home-page">
       <Helmet>
-        <title>佛津 — 全球佛教古籍数字资源聚合平台</title>
+        <title>{t("app.title")}</title>
       </Helmet>
       <section className="home-hero">
         <div className="home-hero-bg">
@@ -68,7 +65,7 @@ export default function HomePage() {
         <h1 className="home-title">
           <span className="home-title-accent">佛</span>津
         </h1>
-        <div className="home-subtitle">全球佛教古籍数字资源聚合平台</div>
+        <div className="home-subtitle">{t("app.tagline")}</div>
 
         {/* 合并搜索栏 */}
         <div className="search-combo">
@@ -76,7 +73,7 @@ export default function HomePage() {
             <button
               className="search-combo-src"
               onClick={() => setSourceOpen(!sourceOpen)}
-              aria-label="选择数据源"
+              aria-label={t("home.select_source")}
               aria-expanded={sourceOpen}
               aria-haspopup="listbox"
             >
@@ -89,14 +86,14 @@ export default function HomePage() {
             <input
               ref={inputRef}
               className="search-combo-input"
-              placeholder="输入经名、译者、宗派..."
+              placeholder={t("home.search_placeholder")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              aria-label="搜索佛教典籍"
+              aria-label={t("home.search_label")}
             />
             <button className="search-combo-btn" onClick={() => handleSearch()}>
-              <SearchOutlined /> 搜索
+              <SearchOutlined /> {t("home.search_btn")}
             </button>
           </div>
 
@@ -112,56 +109,56 @@ export default function HomePage() {
 
         {/* 热门检索 */}
         <div className="home-hot-tags">
-          <span className="home-hot-label">热门检索</span>
-          {HOT_TAGS.map((tag) => (
+          <span className="home-hot-label">{t("home.hot_label")}</span>
+          {hotTags.map((tag) => (
             <button key={tag} className="home-hot-tag" onClick={() => handleSearch(tag)}>
               {tag}
             </button>
           ))}
         </div>
 
-        <div className="home-stats" role="group" aria-label="平台数据统计">
+        <div className="home-stats" role="group" aria-label={t("home.stat_label")}>
           <div className="home-stat-item">
             <div className="home-stat-num">
               {stats ? stats.total_texts.toLocaleString() : "—"}
             </div>
-            <div className="home-stat-lbl">收录典籍</div>
+            <div className="home-stat-lbl">{t("home.stat_texts")}</div>
           </div>
           <div className="home-stat-item">
             <div className="home-stat-num">{srcCount || "—"}</div>
-            <div className="home-stat-lbl">数据来源</div>
+            <div className="home-stat-lbl">{t("home.stat_sources")}</div>
           </div>
           <div className="home-stat-item">
             <div className="home-stat-num">{langAllCount || "—"}</div>
-            <div className="home-stat-lbl">关联语种</div>
+            <div className="home-stat-lbl">{t("home.stat_langs")}</div>
           </div>
         </div>
         <div className="home-features">
           <div className="home-feature-card" onClick={() => navigate("/sources")}>
             <DatabaseOutlined className="home-feature-icon" />
-            <div className="home-feature-title">数据来源</div>
-            <div className="home-feature-desc">汇聚 CBETA、SuttaCentral 等全球数字佛典资源</div>
+            <div className="home-feature-title">{t("home.feature_sources_title")}</div>
+            <div className="home-feature-desc">{t("home.feature_sources_desc")}</div>
           </div>
           <div className="home-feature-card" onClick={() => navigate("/kg")}>
             <ApartmentOutlined className="home-feature-icon" />
-            <div className="home-feature-title">知识图谱</div>
-            <div className="home-feature-desc">人物、典籍、宗派关系可视化探索</div>
+            <div className="home-feature-title">{t("home.feature_kg_title")}</div>
+            <div className="home-feature-desc">{t("home.feature_kg_desc")}</div>
           </div>
           <div className="home-feature-card" onClick={() => navigate("/chat")}>
             <RobotOutlined className="home-feature-icon" />
-            <div className="home-feature-title">AI 问答</div>
-            <div className="home-feature-desc">基于经文原文的智能佛学问答</div>
+            <div className="home-feature-title">{t("home.feature_chat_title")}</div>
+            <div className="home-feature-desc">{t("home.feature_chat_desc")}</div>
           </div>
           <div className="home-feature-card" onClick={() => navigate("/collections")}>
             <BookOutlined className="home-feature-icon" />
-            <div className="home-feature-title">经典专题</div>
-            <div className="home-feature-desc">按主题浏览精选佛教典籍</div>
+            <div className="home-feature-title">{t("home.feature_collections_title")}</div>
+            <div className="home-feature-desc">{t("home.feature_collections_desc")}</div>
           </div>
         </div>
 
         <div className="home-trust">
-          数据来源均为全球学术机构公开资源，定期同步，自动去重 ·{" "}
-          <span className="home-trust-link" onClick={() => navigate("/sources")}>了解数据来源 →</span>
+          {t("home.trust")} ·{" "}
+          <span className="home-trust-link" onClick={() => navigate("/sources")}>{t("home.trust_link")}</span>
         </div>
 
       </section>

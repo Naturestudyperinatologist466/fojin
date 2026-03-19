@@ -15,7 +15,9 @@ import {
   GithubOutlined,
   SunOutlined,
   MoonOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../stores/authStore";
 import { useThemeStore } from "../stores/themeStore";
 import { getPendingSuggestionCount } from "../api/client";
@@ -27,15 +29,16 @@ export default function Layout() {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { mode, toggleMode } = useThemeStore();
+  const { t, i18n } = useTranslation();
   const isHome = location.pathname === "/";
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleLogout = () => {
     Modal.confirm({
-      title: "确认退出",
-      content: "确定要退出登录吗？",
-      okText: "退出",
-      cancelText: "取消",
+      title: t("auth.logout_confirm_title"),
+      content: t("auth.logout_confirm_content"),
+      okText: t("auth.logout_ok"),
+      cancelText: t("auth.cancel"),
       onOk: () => {
         logout();
         navigate("/");
@@ -59,15 +62,15 @@ export default function Layout() {
   }, [isAdmin, location.pathname]);
 
   const navItems = [
-    { icon: <DatabaseOutlined />, label: "数据源", path: "/sources" },
-    { icon: <BookOutlined />, label: "经典专题", path: "/collections" },
-    { icon: <ApartmentOutlined />, label: "知识图谱", path: "/kg" },
-    { icon: <RobotOutlined />, label: "AI 问答", path: "/chat" },
+    { icon: <DatabaseOutlined />, label: t("nav.sources"), path: "/sources" },
+    { icon: <BookOutlined />, label: t("nav.collections"), path: "/collections" },
+    { icon: <ApartmentOutlined />, label: t("nav.kg"), path: "/kg" },
+    { icon: <RobotOutlined />, label: t("nav.chat"), path: "/chat" },
     ...(isAdmin
       ? [
           {
             icon: <Badge count={pendingCount} size="small" offset={[4, -2]}><SettingOutlined /></Badge>,
-            label: "管理",
+            label: t("nav.admin"),
             path: "/admin/suggestions",
           },
         ]
@@ -107,7 +110,7 @@ export default function Layout() {
           e.currentTarget.style.overflow = "hidden";
         }}
       >
-        跳至主要内容
+        {t("nav.skip_to_content")}
       </a>
       <Header
         style={{
@@ -165,16 +168,30 @@ export default function Layout() {
             icon={<MenuOutlined />}
             onClick={() => setDrawerOpen(true)}
             style={{ color: inkMuted }}
-            aria-label="打开导航菜单"
+            aria-label={t("nav.open_menu")}
           />
         </Space>
         <Space>
+          <Dropdown
+            menu={{
+              items: [
+                { key: "zh", label: "中文" },
+                { key: "ja", label: "日本語" },
+              ],
+              onClick: ({ key }) => i18n.changeLanguage(key),
+              selectedKeys: [i18n.language],
+            }}
+          >
+            <Button type="text" icon={<GlobalOutlined />} style={{ color: inkMuted, fontSize: 13 }}>
+              {t(`language.${i18n.language}`)}
+            </Button>
+          </Dropdown>
           <Button
             type="text"
             icon={mode === "dark" ? <SunOutlined /> : <MoonOutlined />}
             onClick={toggleMode}
             style={{ color: inkMuted, fontSize: 16 }}
-            aria-label={mode === "dark" ? "切换到浅色模式" : "切换到深色模式"}
+            aria-label={mode === "dark" ? t("theme.switch_light") : t("theme.switch_dark")}
           />
           {user ? (
             <Dropdown
@@ -183,20 +200,20 @@ export default function Layout() {
                   {
                     key: "profile",
                     icon: <UserOutlined />,
-                    label: "个人中心",
+                    label: t("auth.profile"),
                     onClick: () => navigate("/profile"),
                   },
                   {
                     key: "bookmarks",
                     icon: <HeartOutlined />,
-                    label: "我的收藏",
+                    label: t("auth.bookmarks"),
                     onClick: () => navigate("/profile"),
                   },
                   { type: "divider" },
                   {
                     key: "logout",
                     icon: <LogoutOutlined />,
-                    label: "退出登录",
+                    label: t("auth.logout"),
                     onClick: handleLogout,
                   },
                 ],
@@ -226,7 +243,7 @@ export default function Layout() {
               }}
               onClick={() => navigate("/login")}
             >
-              登录
+              {t("auth.login")}
             </Button>
           )}
         </Space>
@@ -245,7 +262,7 @@ export default function Layout() {
           padding: "16px 32px",
         }}
       >
-        佛津 FoJin &copy; 2026 — 全球佛教古籍数字资源聚合平台
+        {t("footer.copyright")}
         <span style={{ margin: "0 8px", opacity: 0.4 }}>|</span>
         <a
           href="https://github.com/xr843/fojin"
@@ -257,7 +274,7 @@ export default function Layout() {
         </a>
       </Footer>
       <Drawer
-        title="导航"
+        title={t("nav.drawer_title")}
         placement="left"
         width={240}
         open={drawerOpen}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Form, Input, Button, Typography, Tabs, message } from "antd";
 import { UserOutlined, LockOutlined, MailOutlined } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../stores/authStore";
 import api from "../api/client";
 
@@ -9,6 +10,7 @@ const { Title } = Typography;
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
@@ -21,10 +23,10 @@ export default function LoginPage() {
         headers: { Authorization: `Bearer ${tokenData.access_token}` },
       });
       setAuth(tokenData.access_token, user);
-      message.success("登录成功");
+      message.success(t("auth.login_success"));
       navigate("/");
     } catch (err: any) {
-      message.error(err.response?.data?.detail || "登录失败");
+      message.error(err.response?.data?.detail || t("auth.login_fail"));
     } finally {
       setLoading(false);
     }
@@ -39,11 +41,11 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await api.post("/auth/register", values);
-      message.success("注册成功，请登录");
+      message.success(t("auth.register_success"));
       setActiveTab("login");
     } catch (err: any) {
       const detail = err.response?.data?.detail;
-      const msg = Array.isArray(detail) ? detail.map((d: any) => d.msg).join("; ") : detail || "注册失败";
+      const msg = Array.isArray(detail) ? detail.map((d: any) => d.msg).join("; ") : detail || t("auth.register_fail");
       message.error(msg);
     } finally {
       setLoading(false);
@@ -62,7 +64,7 @@ export default function LoginPage() {
     >
       <Card style={{ width: 400 }}>
         <Title level={3} style={{ textAlign: "center", marginBottom: 24 }}>
-          佛津
+          {t("app.name")}
         </Title>
         <Tabs
           activeKey={activeTab}
@@ -71,18 +73,18 @@ export default function LoginPage() {
           items={[
             {
               key: "login",
-              label: "登录",
+              label: t("auth.login"),
               children: (
                 <Form onFinish={handleLogin} layout="vertical">
-                  <Form.Item name="username" rules={[{ required: true, message: "请输入用户名" }]}>
-                    <Input prefix={<UserOutlined />} placeholder="用户名" size="large" />
+                  <Form.Item name="username" rules={[{ required: true, message: t("auth.username_required") }]}>
+                    <Input prefix={<UserOutlined />} placeholder={t("auth.username")} size="large" />
                   </Form.Item>
-                  <Form.Item name="password" rules={[{ required: true, message: "请输入密码" }]}>
-                    <Input.Password prefix={<LockOutlined />} placeholder="密码" size="large" />
+                  <Form.Item name="password" rules={[{ required: true, message: t("auth.password_required") }]}>
+                    <Input.Password prefix={<LockOutlined />} placeholder={t("auth.password")} size="large" />
                   </Form.Item>
                   <Form.Item>
                     <Button type="primary" htmlType="submit" loading={loading} block size="large">
-                      登录
+                      {t("auth.login")}
                     </Button>
                   </Form.Item>
                 </Form>
@@ -90,38 +92,38 @@ export default function LoginPage() {
             },
             {
               key: "register",
-              label: "注册",
+              label: t("auth.register"),
               children: (
                 <Form onFinish={handleRegister} layout="vertical">
-                  <Form.Item name="username" rules={[{ required: true, message: "请输入用户名" }]}>
-                    <Input prefix={<UserOutlined />} placeholder="用户名" size="large" />
+                  <Form.Item name="username" rules={[{ required: true, message: t("auth.username_required") }]}>
+                    <Input prefix={<UserOutlined />} placeholder={t("auth.username")} size="large" />
                   </Form.Item>
                   <Form.Item
                     name="email"
                     rules={[
-                      { required: true, message: "请输入邮箱" },
-                      { type: "email", message: "邮箱格式不正确" },
+                      { required: true, message: t("auth.email_required") },
+                      { type: "email", message: t("auth.email_invalid") },
                     ]}
                   >
-                    <Input prefix={<MailOutlined />} placeholder="邮箱" size="large" />
+                    <Input prefix={<MailOutlined />} placeholder={t("auth.email")} size="large" />
                   </Form.Item>
                   <Form.Item
                     name="password"
                     rules={[
-                      { required: true, message: "请输入密码" },
-                      { min: 8, message: "密码至少8位" },
-                      { pattern: /[a-zA-Z]/, message: "密码必须包含字母" },
-                      { pattern: /\d/, message: "密码必须包含数字" },
+                      { required: true, message: t("auth.password_required") },
+                      { min: 8, message: t("auth.password_min") },
+                      { pattern: /[a-zA-Z]/, message: t("auth.password_letter") },
+                      { pattern: /\d/, message: t("auth.password_digit") },
                     ]}
                   >
-                    <Input.Password prefix={<LockOutlined />} placeholder="密码（至少8位，含字母和数字）" size="large" />
+                    <Input.Password prefix={<LockOutlined />} placeholder={t("auth.password_hint")} size="large" />
                   </Form.Item>
                   <Form.Item name="display_name">
-                    <Input prefix={<UserOutlined />} placeholder="显示名称（选填）" size="large" />
+                    <Input prefix={<UserOutlined />} placeholder={t("auth.display_name")} size="large" />
                   </Form.Item>
                   <Form.Item>
                     <Button type="primary" htmlType="submit" loading={loading} block size="large">
-                      注册
+                      {t("auth.register")}
                     </Button>
                   </Form.Item>
                 </Form>
