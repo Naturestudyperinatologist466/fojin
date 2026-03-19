@@ -4,9 +4,9 @@
 
 ### The World's Encyclopedic Buddhist Digital Text Platform
 
-**450+ sources. 30 languages. 30 countries. One search.**
+**500+ sources. 30 languages. 30 countries. One search.**
 
-Aggregating the world's Buddhist digital heritage — from the Chinese Tripitaka to Sanskrit manuscripts, Pali suttas to Tibetan texts — with full-text reading, AI-powered Q&A, knowledge graph, and multi-language parallel reading.
+Aggregating the world's Buddhist digital heritage — 9,200+ texts in Pali, Classical Chinese, Tibetan, and Sanskrit from 504 data sources — with full-text reading, AI-powered Q&A, knowledge graph, collections, citations, annotations, bookmarks, and multi-language parallel reading.
 
 [Live Demo](https://fojin.app) &nbsp;&middot;&nbsp; [中文文档](./docs/README_zh.md) &nbsp;&middot;&nbsp; [Discord](https://discord.gg/76SZeuJekq) &nbsp;&middot;&nbsp; [Report Bug](https://github.com/xr843/fojin/issues)
 
@@ -25,17 +25,19 @@ Aggregating the world's Buddhist digital heritage — from the Chinese Tripitaka
 
 Buddhist texts are scattered across hundreds of databases worldwide — CBETA, SuttaCentral, BDRC, SAT, 84000, GRETIL, and many more. Each has different interfaces, languages, and data formats. Researchers spend more time *finding* texts than *reading* them.
 
-**FoJin solves this.** It aggregates 450+ sources into a single, searchable platform with features no other tool provides:
+**FoJin solves this.** It aggregates 504 sources into a single, searchable platform with features no other tool provides:
 
 | What you need | How FoJin helps |
 |---|---|
-| Find a sutra across databases | **Multi-dimensional search** across local index with 450+ sources |
-| Read the full text online | **4,488 fascicles** available for online reading |
+| Find a sutra across databases | **Multi-dimensional search** across 9,200+ texts from 504 sources |
+| Read the full text online | **7,600+ texts** with full content available for online reading |
 | Compare translations | **Parallel reading** in 30 languages side by side |
 | Look up Buddhist terms | **6 dictionaries**, 237K entries (Chinese/Sanskrit/Pali/English) |
 | Explore relationships | **Knowledge graph** with 9,600+ entities and 3,800+ relations |
 | View original manuscripts | **IIIF manuscript viewer** connected to BDRC and more |
 | Ask questions about texts | **AI Q&A** ("XiaoJin") grounded in 11M characters of canonical text |
+| Save and organize | **Collections, bookmarks, annotations** for personal study |
+| Cite in research | **Citation export** (BibTeX, RIS, APA) for academic use |
 
 ## Quick Start
 
@@ -60,9 +62,9 @@ Search across Buddhist canons by title, translator, catalog number, or full-text
 
 ### Full-Text Reading
 
-Read 4,488 fascicles of Buddhist texts online. Navigate by volume, scroll through content, and jump between related texts.
+Read 7,600+ Buddhist texts with full content online. Navigate by volume, scroll through content, and jump between related texts.
 
-### Parallel Reading (29 Languages)
+### Parallel Reading (30 Languages)
 
 Compare translations side by side — Classical Chinese, Sanskrit, Pali, Tibetan, English, Japanese, Korean, Gandhari, and 21 more languages.
 
@@ -86,13 +88,25 @@ Ask questions in natural language. XiaoJin answers based on canonical Buddhist t
 
 <p align="center"><img src="./docs/screenshots/ai-chat-answer.png" alt="AI Q&A answering about Xuanzang's disciples" width="800"></p>
 
+### Collections, Bookmarks & Annotations
+
+Save texts to personal collections, bookmark specific passages, and add annotations for study and research.
+
+### Citation Export
+
+Export citations in BibTeX, RIS, and APA formats for academic papers and reference managers.
+
 ### Manuscript Viewer
 
 Browse digitized manuscripts and rare editions from BDRC and other institutions via IIIF protocol.
 
+### Multi-Language UI
+
+Available in 8 languages: Chinese, English, Japanese, Korean, Thai, Vietnamese, Sinhala, and Burmese.
+
 ## Data Sources
 
-<p align="center"><img src="./docs/screenshots/sources.png" alt="450+ data sources from 30 countries" width="800"></p>
+<p align="center"><img src="./docs/screenshots/sources.png" alt="504 data sources from 30 countries" width="800"></p>
 
 FoJin aggregates data from major Buddhist digital projects worldwide:
 
@@ -108,7 +122,7 @@ FoJin aggregates data from major Buddhist digital projects worldwide:
 | [Gandhari.org](https://gandhari.org) | Gandhari manuscripts | Gandhari |
 | [VRI Tipitaka](https://tipitaka.org) | Pali Canon (Chattha Sangayana) | Pali |
 | [Korean Tripitaka](http://kb.sutra.re.kr) | Goryeo Tripitaka | Chinese, Korean |
-| + 398 more... | | |
+| + 494 more... | | |
 
 ## Tech Stack
 
@@ -193,7 +207,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 - [x] ~~Public REST API with rate limiting~~
 - [x] ~~User annotations~~
 - [x] ~~Community-contributed data sources~~
-- [ ] Internationalization (i18n) — Japanese, Korean, Thai, Vietnamese UI
+- [x] ~~Internationalization (i18n) — 8 UI languages (Chinese, English, Japanese, Korean, Thai, Vietnamese, Sinhala, Burmese)~~
 - [ ] OCR pipeline for scanned texts
 - [ ] Embedding-based semantic search across all texts
 - [ ] Collaborative annotation sharing
