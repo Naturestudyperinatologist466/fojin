@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import { ConfigProvider, Spin, theme as antTheme } from "antd";
 import { useTranslation } from "react-i18next";
 import zhCN from "antd/locale/zh_CN";
+import enUS from "antd/locale/en_US";
 import jaJP from "antd/locale/ja_JP";
 import Layout from "./components/Layout";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -10,7 +11,7 @@ import RouteErrorBoundary from "./components/RouteErrorBoundary";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useThemeStore } from "./stores/themeStore";
 
-const antdLocales: Record<string, typeof zhCN> = { zh: zhCN, ja: jaJP };
+const antdLocales: Record<string, typeof zhCN> = { zh: zhCN, en: enUS, ja: jaJP };
 import HomePage from "./pages/HomePage";
 const SearchPage = lazy(() => import("./pages/SearchPage"));
 const TextDetailPage = lazy(() => import("./pages/TextDetailPage"));

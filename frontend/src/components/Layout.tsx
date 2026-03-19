@@ -176,6 +176,7 @@ export default function Layout() {
             menu={{
               items: [
                 { key: "zh", label: "中文" },
+                { key: "en", label: "English" },
                 { key: "ja", label: "日本語" },
               ],
               onClick: ({ key }) => i18n.changeLanguage(key),
