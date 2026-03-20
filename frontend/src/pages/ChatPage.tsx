@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Input, Button, Space, message, Alert } from "antd";
+import { Input, Button, Space, message, Alert, Tooltip } from "antd";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import {
@@ -12,6 +12,7 @@ import {
   PlusOutlined,
   SettingOutlined,
   MenuOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -180,6 +181,42 @@ export default function ChatPage() {
     });
   }, [input, sending, sessionId, refetchSessions, refetchQuota]);
 
+  const handleExport = useCallback(() => {
+    if (messages.length === 0) {
+      message.warning("暂无对话内容可导出");
+      return;
+    }
+    const sessionTitle = sessions?.find((s) => s.id === sessionId)?.title || "新对话";
+    const now = new Date().toLocaleString("zh-CN");
+    let md = `# ${sessionTitle}\n导出时间: ${now}\n\n`;
+    for (const m of messages) {
+      if (m.role === "user") {
+        md += `## 用户\n${m.content}\n\n`;
+      } else {
+        md += `## AI 助手\n${m.content}\n\n`;
+        if (m.sources && m.sources.length > 0) {
+          md += "**引用来源:**\n";
+          for (const s of m.sources) {
+            if (s.source_type === "dify") {
+              md += `- 📚 佛典知识库 (${Math.round(s.score * 100)}%)\n`;
+            } else {
+              const title = s.title_zh ? `《${s.title_zh}》第${s.juan_num}卷` : `文本#${s.text_id} 第${s.juan_num}卷`;
+              md += `- 📖 ${title} (${Math.round(s.score * 100)}%)\n`;
+            }
+          }
+          md += "\n";
+        }
+      }
+    }
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${sessionTitle}-${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [messages, sessions, sessionId]);
+
   if (!user) {
     return (
       <>
@@ -277,16 +314,27 @@ export default function ChatPage() {
 
         {/* Chat area */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-          {/* Mobile menu toggle */}
-          <Button
-            className="chat-mobile-toggle"
-            type="text"
-            icon={<MenuOutlined />}
-            onClick={() => setSidebarOpen(true)}
-            style={{ alignSelf: "flex-start", marginBottom: 4 }}
-          >
-            会话列表
-          </Button>
+          {/* Chat header: mobile toggle + export */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <Button
+              className="chat-mobile-toggle"
+              type="text"
+              icon={<MenuOutlined />}
+              onClick={() => setSidebarOpen(true)}
+            >
+              会话列表
+            </Button>
+            {messages.length > 0 && (
+              <Tooltip title="导出对话为 Markdown">
+                <Button
+                  type="text"
+                  icon={<DownloadOutlined />}
+                  onClick={handleExport}
+                  style={{ color: "var(--fj-ink-muted)" }}
+                />
+              </Tooltip>
+            )}
+          </div>
           {/* Messages */}
           <div style={{ flex: 1, overflow: "auto", padding: "16px 0" }}>
             {hasOlderMessages && (
@@ -355,18 +403,31 @@ export default function ChatPage() {
                       {m.sources.map((s, i) => (
                         <div key={i} style={{ marginBottom: 4 }}>
                           {s.source_type === "dify" ? (
-                            <span>{"📚"} 佛典知识库 ({Math.round(s.score * 100)}%)</span>
+                            <Tooltip title={s.chunk_text} placement="top" overlayStyle={{ maxWidth: 400 }}>
+                              <span style={{ cursor: "default" }}>{"📚"} 佛典知识库 ({Math.round(s.score * 100)}%)</span>
+                            </Tooltip>
                           ) : (
-                            <a
-                              onClick={() => s.text_id > 0 && navigate(`/texts/${s.text_id}/read?juan=${s.juan_num}`)}
-                              style={{ cursor: s.text_id > 0 ? "pointer" : "default", color: "inherit", textDecoration: s.text_id > 0 ? "underline" : "none" }}
-                            >
-                              {"📖"}{" "}
-                              {s.title_zh
-                                ? `《${s.title_zh}》第${s.juan_num}卷`
-                                : `文本#${s.text_id} 第${s.juan_num}卷`}
-                              {" "}({Math.round(s.score * 100)}%)
-                            </a>
+                            <Tooltip title={s.chunk_text} placement="top" overlayStyle={{ maxWidth: 400 }}>
+                              <a
+                                onClick={() => s.text_id > 0 && navigate(`/texts/${s.text_id}/read?juan=${s.juan_num}`)}
+                                style={{
+                                  cursor: s.text_id > 0 ? "pointer" : "default",
+                                  color: "inherit",
+                                  textDecoration: s.text_id > 0 ? "underline" : "none",
+                                  borderRadius: 4,
+                                  padding: "1px 4px",
+                                  transition: "background 0.2s",
+                                }}
+                                onMouseEnter={(e) => { if (s.text_id > 0) e.currentTarget.style.background = "rgba(176,141,87,0.15)"; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                              >
+                                {"📖"}{" "}
+                                {s.title_zh
+                                  ? `《${s.title_zh}》第${s.juan_num}卷`
+                                  : `文本#${s.text_id} 第${s.juan_num}卷`}
+                                {" "}({Math.round(s.score * 100)}%)
+                              </a>
+                            </Tooltip>
                           )}
                         </div>
                       ))}
