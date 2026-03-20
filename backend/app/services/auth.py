@@ -39,7 +39,11 @@ async def login_user(db: AsyncSession, username: str, password: str) -> TokenRes
     result = await db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
 
-    if user is None or not verify_password(password, user.hashed_password):
+    # Always run password verification to prevent timing-based user enumeration.
+    # When user is not found, verify against a dummy hash so the response time
+    # is indistinguishable from an incorrect-password attempt.
+    _dummy_hash = "$2b$12$LJ3m4ys3Lz0Y1vVTqHKZaeflVbOBGSJl6Nnb3CiZ3sCImt9Ghmiy"
+    if not verify_password(password, user.hashed_password if user else _dummy_hash) or user is None:
         raise InvalidCredentialsError()
 
     if not user.is_active:
