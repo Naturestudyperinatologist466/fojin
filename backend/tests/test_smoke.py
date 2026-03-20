@@ -17,8 +17,9 @@ async def test_search_with_sources_filter(client, mock_es):
     assert "total" in data
     assert "results" in data
 
-    # Verify ES was called with a source_code filter
-    call_args = mock_es.search.call_args
+    # Verify the *first* ES search call has the source_code filter
+    # (subsequent calls may be the phrase-suggestion query)
+    call_args = mock_es.search.call_args_list[0]
     body = call_args.kwargs.get("body") or call_args[1].get("body")
     filters = body["query"]["bool"]["filter"]
     source_filter = [f for f in filters if "term" in f or "terms" in f]
