@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.middleware.gzip import GZipMiddleware
+
 
 from app.config import settings
 from app.core.elasticsearch import close_es, get_es, init_es
@@ -78,7 +78,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
 app.add_middleware(RateLimitMiddleware)
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# GZip handled by nginx — removed from backend to avoid compressing SSE streams
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
