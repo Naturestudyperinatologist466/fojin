@@ -11,7 +11,6 @@ from app.config import settings
 from app.core.crypto import decrypt_api_key
 from app.core.exceptions import (
     AccessDeniedError,
-    AuthError,
     NotFoundError,
     QuotaExceededError,
     ServiceError,
@@ -142,6 +141,40 @@ async def _check_daily_quota(db: AsyncSession, user: User) -> None:
     await db.flush()
 
 
+def _anon_quota_key(client_ip: str) -> str:
+    """Redis key for anonymous daily chat quota by IP."""
+    today = date.today().isoformat()
+    return f"chat:anon:{client_ip}:{today}"
+
+
+async def get_anonymous_quota_used(redis, client_ip: str) -> int:
+    """Get the number of chats used today by an anonymous IP."""
+    if not redis:
+        return 0
+    try:
+        val = await redis.get(_anon_quota_key(client_ip))
+        return int(val) if val else 0
+    except Exception:
+        return 0
+
+
+async def _check_anonymous_quota(redis, client_ip: str) -> None:
+    """Check and increment anonymous daily quota via Redis. Raises QuotaExceededError if exceeded."""
+    if not redis:
+        raise ServiceError("服务暂时不可用，请稍后重试")
+    key = _anon_quota_key(client_ip)
+    try:
+        current = await redis.incr(key)
+        if current == 1:
+            await redis.expire(key, 86400)  # 24h TTL
+        if current > FREE_DAILY_LIMIT:
+            raise QuotaExceededError(limit=FREE_DAILY_LIMIT)
+    except QuotaExceededError:
+        raise
+    except Exception:
+        logger.warning("Redis anonymous quota check failed", exc_info=True)
+
+
 def _validate_message(message: str) -> None:
     """Validate chat message content."""
     if not message or not message.strip():
@@ -230,30 +263,36 @@ async def _prepare_chat(
     message: str,
     session_id: int | None = None,
     user: User | None = None,
-) -> tuple[ChatSession, str, str, str, bool, list[ChatSource], list[dict[str, str]]]:
+    client_ip: str | None = None,
+    redis=None,
+) -> tuple[ChatSession | None, str, str, str, bool, list[ChatSource], list[dict[str, str]]]:
     """Shared setup for send_message and send_message_stream.
 
     Returns (chat_session, api_url, api_key, model, is_byok, sources, llm_messages).
+    chat_session is None for anonymous users.
     """
     _validate_message(message)
 
-    if user_id is None:
-        raise AuthError("请登录后使用 AI 问答功能")
-
-    chat_session = await _resolve_session(db, user_id, message, session_id)
     api_url, api_key, model, is_byok = _resolve_llm_config(user)
 
     if not is_byok and not api_key:
         raise ServiceError("平台 AI 服务暂未配置。请在个人中心配置自己的 API Key 使用 AI 问答功能。")
 
-    if not is_byok and user:
-        await _check_daily_quota(db, user)
+    chat_session = None
+    if user_id is not None:
+        chat_session = await _resolve_session(db, user_id, message, session_id)
+        if not is_byok:
+            await _check_daily_quota(db, user)
+    else:
+        # Anonymous user — check IP-based quota via Redis
+        if client_ip:
+            await _check_anonymous_quota(redis, client_ip)
 
     # RAG: hybrid retrieval
     sources, context_text = await retrieve_rag_context(db, message)
 
-    # Build messages for LLM
-    history = await get_history(db, chat_session.id)
+    # Build messages for LLM (no history for anonymous users)
+    history = await get_history(db, chat_session.id) if chat_session else []
     llm_messages = _build_llm_messages(history, context_text, message)
 
     return chat_session, api_url, api_key, model, is_byok, sources, llm_messages
@@ -265,10 +304,12 @@ async def send_message(
     message: str,
     session_id: int | None = None,
     user: User | None = None,
+    client_ip: str | None = None,
+    redis=None,
 ) -> ChatResponse:
     _t0 = _time.monotonic()
     chat_session, api_url, api_key, model, is_byok, sources, llm_messages = await _prepare_chat(
-        db, user_id, message, session_id, user,
+        db, user_id, message, session_id, user, client_ip=client_ip, redis=redis,
     )
     _t1 = _time.monotonic()
     logger.debug("TIMING: _prepare_chat took %.2fs", _t1 - _t0)
@@ -302,17 +343,18 @@ async def send_message(
         logger.exception("LLM call failed")
         answer = "抱歉，AI 服务暂时不可用，请稍后重试。"
 
-    await _save_messages(db, chat_session.id, message, answer, sources)
+    if chat_session:
+        await _save_messages(db, chat_session.id, message, answer, sources)
 
-    # Auto-generate a better session title for new sessions (first message)
-    if chat_session.title == message[:50]:
-        title = await _generate_session_title(api_url, api_key, model, message, answer)
-        if title:
-            chat_session.title = title
-            await db.commit()
+        # Auto-generate a better session title for new sessions (first message)
+        if chat_session.title == message[:50]:
+            title = await _generate_session_title(api_url, api_key, model, message, answer)
+            if title:
+                chat_session.title = title
+                await db.commit()
 
     return ChatResponse(
-        session_id=chat_session.id,
+        session_id=chat_session.id if chat_session else 0,
         message=answer,
         sources=sources,
     )
@@ -324,6 +366,8 @@ async def send_message_stream(
     message: str,
     session_id: int | None = None,
     user: User | None = None,
+    client_ip: str | None = None,
+    redis=None,
 ):
     """Async generator yielding SSE events for streaming chat responses.
 
@@ -342,32 +386,45 @@ async def send_message_stream(
         yield f"data: {json.dumps({'type': 'error', 'message': '消息长度不能超过2000字'})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         return
-    if user_id is None:
-        yield f"data: {json.dumps({'type': 'error', 'message': '请登录后使用 AI 问答功能'})}\n\n"
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
-        return
-
-    chat_session = await _resolve_session(db, user_id, message, session_id)
 
     api_url, api_key, model, is_byok = _resolve_llm_config(user)
     if not is_byok and not api_key:
         yield f"data: {json.dumps({'type': 'error', 'message': '平台 AI 服务暂未配置。请在个人中心配置自己的 API Key 使用 AI 问答功能。'})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         return
-    if not is_byok and user:
-        today = date.today()
-        if user.last_chat_date != today:
-            user.daily_chat_count = 0
-            user.last_chat_date = today
-        if user.daily_chat_count >= FREE_DAILY_LIMIT:
-            yield f"data: {json.dumps({'type': 'error', 'message': f'今日免费额度已用完（{FREE_DAILY_LIMIT}次/天）。配置自己的 API Key 可无限使用。'})}\n\n"
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
-            return
-        user.daily_chat_count += 1
-        await db.flush()
+
+    chat_session = None
+    if user_id is not None:
+        chat_session = await _resolve_session(db, user_id, message, session_id)
+        if not is_byok:
+            today = date.today()
+            if user.last_chat_date != today:
+                user.daily_chat_count = 0
+                user.last_chat_date = today
+            if user.daily_chat_count >= FREE_DAILY_LIMIT:
+                yield f"data: {json.dumps({'type': 'error', 'message': f'今日免费额度已用完（{FREE_DAILY_LIMIT}次/天）。配置自己的 API Key 可无限使用。'})}\n\n"
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                return
+            user.daily_chat_count += 1
+            await db.flush()
+    else:
+        # Anonymous user — check IP-based quota via Redis
+        if client_ip:
+            used = await get_anonymous_quota_used(redis, client_ip)
+            if used >= FREE_DAILY_LIMIT:
+                yield f"data: {json.dumps({'type': 'error', 'message': f'今日免费额度已用完（{FREE_DAILY_LIMIT}次/天）。注册登录后配置 API Key 可无限使用。'})}\n\n"
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                return
+            try:
+                key = _anon_quota_key(client_ip)
+                current = await redis.incr(key)
+                if current == 1:
+                    await redis.expire(key, 86400)
+            except Exception:
+                logger.warning("Redis anonymous quota increment failed", exc_info=True)
 
     # Yield session_id immediately so frontend gets a fast response
-    yield f"data: {json.dumps({'type': 'session_id', 'session_id': chat_session.id}, ensure_ascii=False)}\n\n"
+    yield f"data: {json.dumps({'type': 'session_id', 'session_id': chat_session.id if chat_session else 0}, ensure_ascii=False)}\n\n"
 
     # --- Phase 2: RAG retrieval (may take seconds) ---
     sources, context_text = await retrieve_rag_context(db, message)
@@ -375,14 +432,14 @@ async def send_message_stream(
     if sources:
         yield f"data: {json.dumps({'type': 'sources', 'sources': [s.model_dump() for s in sources]}, ensure_ascii=False)}\n\n"
 
-    # Build messages for LLM
-    history = await get_history(db, chat_session.id)
+    # Build messages for LLM (no history for anonymous users)
+    history = await get_history(db, chat_session.id) if chat_session else []
     llm_messages = _build_llm_messages(history, context_text, message)
 
     # --- Phase 3: stream LLM ---
     full_answer = ""
     try:
-        async with httpx.AsyncClient(timeout=120) as client, client.stream(
+        async with httpx.AsyncClient(timeout=60) as client, client.stream(
             "POST",
             f"{api_url}/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},
@@ -429,7 +486,8 @@ async def send_message_stream(
         yield f"data: {json.dumps({'type': 'error', 'message': error_msg}, ensure_ascii=False)}\n\n"
         full_answer = full_answer or error_msg
 
-    await _save_messages(db, chat_session.id, message, full_answer, sources)
+    if chat_session:
+        await _save_messages(db, chat_session.id, message, full_answer, sources)
     yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 
