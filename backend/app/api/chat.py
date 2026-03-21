@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +14,9 @@ from app.schemas.chat import (
     SessionListItem,
 )
 from app.services.chat import (
+    FREE_DAILY_LIMIT,
     delete_session,
+    get_anonymous_quota_used,
     get_history,
     get_history_paginated,
     get_session_for_user,
@@ -26,27 +28,40 @@ from app.services.chat import (
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
+def _get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 @router.post("", response_model=ChatResponse)
 async def chat(
+    request: Request,
     data: ChatRequest,
     user: User | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """发送消息并获取 AI 回答（支持 BYOK）。"""
+    """发送消息并获取 AI 回答（支持 BYOK + 匿名）。"""
     user_id = user.id if user else None
-    return await send_message(db, user_id, data.message, data.session_id, user=user)
+    client_ip = _get_client_ip(request) if not user else None
+    redis = getattr(request.app.state, "redis", None)
+    return await send_message(db, user_id, data.message, data.session_id, user=user, client_ip=client_ip, redis=redis)
 
 
 @router.post("/stream")
 async def chat_stream(
+    request: Request,
     data: ChatRequest,
     user: User | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
     """SSE 流式发送消息并获取 AI 回答。"""
     user_id = user.id if user else None
+    client_ip = _get_client_ip(request) if not user else None
+    redis = getattr(request.app.state, "redis", None)
     return StreamingResponse(
-        send_message_stream(db, user_id, data.message, data.session_id, user=user),
+        send_message_stream(db, user_id, data.message, data.session_id, user=user, client_ip=client_ip, redis=redis),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache, no-transform",
@@ -59,20 +74,31 @@ async def chat_stream(
 
 @router.get("/quota")
 async def chat_quota(
-    user: User = Depends(get_current_user),
+    request: Request,
+    user: User | None = Depends(get_optional_user),
 ):
-    """获取当前用户的每日问答配额。"""
+    """获取当前用户或匿名用户的每日问答配额。"""
     from datetime import date
 
-    from app.services.chat import FREE_DAILY_LIMIT
+    if user:
+        used = user.daily_chat_count if user.last_chat_date == date.today() else 0
+        has_byok = bool(user.encrypted_api_key)
+        return {
+            "limit": FREE_DAILY_LIMIT,
+            "used": used,
+            "remaining": FREE_DAILY_LIMIT - used if not has_byok else -1,
+            "has_byok": has_byok,
+        }
 
-    used = user.daily_chat_count if user.last_chat_date == date.today() else 0
-    has_byok = bool(user.encrypted_api_key)
+    # Anonymous user — check Redis by IP
+    client_ip = _get_client_ip(request)
+    redis = getattr(request.app.state, "redis", None)
+    used = await get_anonymous_quota_used(redis, client_ip)
     return {
         "limit": FREE_DAILY_LIMIT,
         "used": used,
-        "remaining": FREE_DAILY_LIMIT - used if not has_byok else -1,
-        "has_byok": has_byok,
+        "remaining": FREE_DAILY_LIMIT - used,
+        "has_byok": False,
     }
 
 

@@ -59,6 +59,33 @@ em {
   .nav-mobile-trigger { display: inline-flex !important; }
 }
 
+/* ========== Chat Thinking Animation ========== */
+.chat-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fj-ink-muted);
+  font-size: 14px;
+}
+.chat-thinking-dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 4px;
+}
+.chat-thinking-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--fj-ink-muted);
+  animation: chat-dot-bounce 1.4s ease-in-out infinite;
+}
+.chat-thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+.chat-thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes chat-dot-bounce {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1.1); }
+}
+
 /* ========== Chat Markdown ========== */
 .chat-markdown p { margin: 0 0 0.5em; }
 .chat-markdown p:last-child { margin-bottom: 0; }

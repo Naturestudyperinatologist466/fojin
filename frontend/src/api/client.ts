@@ -697,63 +697,36 @@ export interface StreamCallbacks {
   onDone: () => void;
 }
 
-export async function sendChatMessageStream(
+export function sendChatMessageStream(
   message: string,
   sessionId: number | undefined,
   callbacks: StreamCallbacks,
+  signal?: AbortSignal,
 ): Promise<void> {
-  // Get auth token from localStorage (same pattern as axios interceptor)
-  let token = "";
-  try {
-    const raw = localStorage.getItem("fojin-auth");
-    if (raw) {
-      const { state } = JSON.parse(raw);
-      if (state?.token) token = state.token;
-    }
-  } catch { /* ignore */ }
-
-  try {
-    const resp = await fetch("/api/chat/stream", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ message, session_id: sessionId ?? null }),
-    });
-
-    if (!resp.ok) {
-      const text = await resp.text();
-      let detail = "发送失败，请稍后重试";
-      try { detail = JSON.parse(text).detail || detail; } catch { /* ignore */ }
-      if (resp.status === 401) {
-        useAuthStore.getState().logout();
-        window.location.href = "/login";
+  return new Promise<void>((resolve) => {
+    // Get auth token from localStorage (same pattern as axios interceptor)
+    let token = "";
+    try {
+      const raw = localStorage.getItem("fojin-auth");
+      if (raw) {
+        const { state } = JSON.parse(raw);
+        if (state?.token) token = state.token;
       }
-      callbacks.onError(detail);
-      callbacks.onDone();
-      return;
-    }
+    } catch { /* ignore */ }
 
-    const reader = resp.body?.getReader();
-    if (!reader) {
-      callbacks.onError("浏览器不支持流式响应");
-      callbacks.onDone();
-      return;
-    }
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/chat/stream");
+    xhr.setRequestHeader("Content-Type", "application/json");
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
-    const decoder = new TextDecoder();
+    let lastIndex = 0;
     let buffer = "";
+    let done = false;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
+    function processChunk(newText: string) {
+      buffer += newText;
       const lines = buffer.split("\n");
-      // Keep the last incomplete line in the buffer
       buffer = lines.pop() || "";
-
       for (const line of lines) {
         if (!line.startsWith("data: ")) continue;
         const payload = line.slice(6).trim();
@@ -774,18 +747,73 @@ export async function sendChatMessageStream(
               callbacks.onError(event.message);
               break;
             case "done":
+              done = true;
               callbacks.onDone();
+              resolve();
               return;
           }
         } catch { /* skip malformed JSON */ }
       }
     }
-    // Stream ended without explicit "done" event
-    callbacks.onDone();
-  } catch (err: any) {
-    callbacks.onError(err?.message || "网络错误，请稍后重试");
-    callbacks.onDone();
-  }
+
+    xhr.onprogress = function () {
+      const newData = xhr.responseText.substring(lastIndex);
+      lastIndex = xhr.responseText.length;
+      if (newData) processChunk(newData);
+    };
+
+    xhr.onload = function () {
+      // Process any remaining data
+      const remaining = xhr.responseText.substring(lastIndex);
+      if (remaining) processChunk(remaining);
+      if (!done) {
+        if (xhr.status === 401) {
+          useAuthStore.getState().logout();
+          window.location.href = "/login";
+          return;
+        }
+        if (xhr.status !== 200) {
+          let detail = "发送失败，请稍后重试";
+          try { detail = JSON.parse(xhr.responseText).detail || detail; } catch { /* ignore */ }
+          callbacks.onError(detail);
+        }
+        callbacks.onDone();
+        resolve();
+      }
+    };
+
+    xhr.onerror = function () {
+      if (!done) {
+        callbacks.onError("网络错误，请稍后重试");
+        callbacks.onDone();
+        resolve();
+      }
+    };
+
+    xhr.ontimeout = function () {
+      if (!done) {
+        callbacks.onError("请求超时，请稍后重试");
+        callbacks.onDone();
+        resolve();
+      }
+    };
+
+    xhr.timeout = 90000;
+
+    // AbortSignal support
+    if (signal) {
+      signal.addEventListener("abort", () => {
+        xhr.abort();
+        if (!done) {
+          callbacks.onError("请求已取消");
+          callbacks.onDone();
+          resolve();
+        }
+      });
+    }
+
+    xhr.send(JSON.stringify({ message, session_id: sessionId ?? null }));
+  });
 }
 
 // --- BYOK (Bring Your Own Key) ---
