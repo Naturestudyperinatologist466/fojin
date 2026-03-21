@@ -13,6 +13,7 @@ import {
   SettingOutlined,
   MenuOutlined,
   DownloadOutlined,
+  StopOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -55,7 +56,6 @@ export default function ChatPage() {
   const { data: quota, refetch: refetchQuota } = useQuery({
     queryKey: ["chatQuota"],
     queryFn: getChatQuota,
-    enabled: !!user,
   });
 
   const scrollToBottom = () => {
@@ -109,6 +109,12 @@ export default function ChatPage() {
   };
 
   const streamingIdRef = useRef<number>(0);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const handleCancel = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }, []);
 
   const handleSend = useCallback(async () => {
     const msg = input.trim();
@@ -137,12 +143,17 @@ export default function ChatPage() {
     setSending(true);
     scrollToBottom();
 
+    const abortController = new AbortController();
+    abortRef.current = abortController;
+
+    // Auto-timeout after 90 seconds
+    const timeoutId = setTimeout(() => abortController.abort(), 90_000);
+
     await sendChatMessageStream(msg, sessionId, {
       onToken: (content: string) => {
         setMessages((prev) =>
           prev.map((m) => {
             if (m.id !== assistantId) return m;
-            // Clear the "thinking" placeholder on first real token
             const current = m.content === "正在检索经文并生成回答..." ? "" : m.content;
             return { ...m, content: current + content };
           }),
@@ -159,12 +170,11 @@ export default function ChatPage() {
       onSessionId: (newSessionId: number) => {
         if (!sessionId) {
           setSessionId(newSessionId);
-          refetchSessions();
+          if (user) refetchSessions();
         }
       },
       onError: (errMsg: string) => {
         message.error(errMsg);
-        // Clear thinking placeholder on error
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId && m.content === "正在检索经文并生成回答..."
@@ -174,11 +184,13 @@ export default function ChatPage() {
         );
       },
       onDone: () => {
+        clearTimeout(timeoutId);
+        abortRef.current = null;
         streamingIdRef.current = 0;
         setSending(false);
         refetchQuota();
       },
-    });
+    }, abortController.signal);
   }, [input, sending, sessionId, refetchSessions, refetchQuota]);
 
   const handleExport = useCallback(() => {
@@ -213,30 +225,13 @@ export default function ChatPage() {
     URL.revokeObjectURL(url);
   }, [messages, sessions, sessionId]);
 
-  if (!user) {
-    return (
-      <>
-        <Helmet><title>小津 AI 佛典问答 — 佛津 FoJin</title></Helmet>
-        <div style={{ maxWidth: 600, margin: "80px auto", textAlign: "center", fontFamily: '"Noto Serif SC", serif' }}>
-          <RobotOutlined style={{ fontSize: 56, color: "var(--fj-accent)", marginBottom: 24 }} />
-          <h2 style={{ color: "var(--fj-ink)", fontWeight: 400, marginBottom: 12 }}>小津 AI 问答</h2>
-          <p style={{ color: "var(--fj-ink-muted)", lineHeight: 1.8, marginBottom: 24 }}>
-            基于 38 部核心佛典、约 1100 万字经文的 RAG 智能问答系统。
-            <br />登录后即可使用，每日免费 10 次。配置自己的 API Key 可无限使用。
-          </p>
-          <Button type="primary" onClick={() => navigate("/login")}>登录使用</Button>
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       <Helmet><title>小津 AI 佛典问答 — 佛津 FoJin</title></Helmet>
       <div style={{ display: "flex", height: "calc(100vh - 120px)", maxWidth: 1100, margin: "0 auto", gap: 16 }}>
 
-        {/* Mobile sidebar drawer */}
-        {sidebarOpen && (
+        {/* Mobile sidebar drawer (logged in only) */}
+        {user && sidebarOpen && (
           <>
             <div className="chat-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
             <div className="chat-sidebar-drawer">
@@ -271,8 +266,8 @@ export default function ChatPage() {
           </>
         )}
 
-        {/* Sidebar (desktop) */}
-        <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}
+        {/* Sidebar (desktop, logged in only) */}
+        {user && <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}
              className="chat-sidebar">
           <Button icon={<PlusOutlined />} block onClick={handleNewChat}>新对话</Button>
           <Button icon={<SettingOutlined />} block type="text" size="small"
@@ -306,20 +301,22 @@ export default function ChatPage() {
               </div>
             ))}
           </div>
-        </div>
+        </div>}
 
         {/* Chat area */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           {/* Chat header: mobile toggle + export */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-            <Button
-              className="chat-mobile-toggle"
-              type="text"
-              icon={<MenuOutlined />}
-              onClick={() => setSidebarOpen(true)}
-            >
-              会话列表
-            </Button>
+            {user ? (
+              <Button
+                className="chat-mobile-toggle"
+                type="text"
+                icon={<MenuOutlined />}
+                onClick={() => setSidebarOpen(true)}
+              >
+                会话列表
+              </Button>
+            ) : <div />}
             {messages.length > 0 && (
               <Tooltip title="导出对话为 Markdown">
                 <Button
@@ -382,9 +379,16 @@ export default function ChatPage() {
                   wordBreak: "break-word",
                 }}>
                   {m.role === "assistant" ? (
-                    <div className="chat-markdown">
-                      <Markdown rehypePlugins={[rehypeSanitize]}>{m.content + (streamingIdRef.current === m.id ? " ▌" : "")}</Markdown>
-                    </div>
+                    m.content === "正在检索经文并生成回答..." ? (
+                      <div className="chat-thinking">
+                        正在检索经文并生成回答
+                        <span className="chat-thinking-dots"><span /><span /><span /></span>
+                      </div>
+                    ) : (
+                      <div className="chat-markdown">
+                        <Markdown rehypePlugins={[rehypeSanitize]}>{m.content + (streamingIdRef.current === m.id ? " ▌" : "")}</Markdown>
+                      </div>
+                    )
                   ) : (
                     m.content
                   )}
@@ -432,9 +436,11 @@ export default function ChatPage() {
 
           {/* Input */}
           <div style={{ padding: "12px 0", borderTop: "1px solid rgba(217,208,193,0.5)" }}>
-            {!keyStatus?.has_api_key && quota && (
+            {!keyStatus?.has_api_key && quota && quota.remaining >= 0 && (
               <Alert
-                message={<span>今日剩余 {quota.remaining}/{quota.limit} 次免费问答。<a onClick={() => navigate("/profile?tab=apikey")}>配置 API Key</a> 可无限使用。</span>}
+                message={<span>每日免费 {quota.limit} 次问答，今日剩余 {quota.remaining} 次。{user
+                  ? <a onClick={() => navigate("/profile?tab=apikey")}>配置 API Key</a>
+                  : <a onClick={() => navigate("/login")}>登录</a>} 可无限使用。</span>}
                 type={quota.remaining <= 2 ? "warning" : "info"} showIcon closable
                 style={{ marginBottom: 8, fontSize: 12 }}
               />
@@ -449,14 +455,24 @@ export default function ChatPage() {
                 size="large"
                 style={{ fontFamily: '"Noto Serif SC", serif' }}
               />
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                onClick={handleSend}
-                loading={sending}
-                size="large"
-                style={{ background: "var(--fj-accent)", borderColor: "var(--fj-accent)" }}
-              />
+              {sending ? (
+                <Button
+                  danger
+                  icon={<StopOutlined />}
+                  onClick={handleCancel}
+                  size="large"
+                >
+                  停止
+                </Button>
+              ) : (
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  onClick={handleSend}
+                  size="large"
+                  style={{ background: "var(--fj-accent)", borderColor: "var(--fj-accent)" }}
+                />
+              )}
             </Space.Compact>
           </div>
         </div>
